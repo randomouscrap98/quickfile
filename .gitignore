@@ -7,7 +7,9 @@
 *.dll
 *.so
 *.dylib
+
 quickfile
+uploads
 
 
 # Test binary, built with `go test -c`
