@@ -7,7 +7,7 @@ type AccountConfig struct {
 
 type Config struct {
 	Timeout            float64                   // Seconds to timeout
-	DataFolder         string                    // Place to put the files
+	Datapath           string                    // Place to put the files
 	Port               int                       // The port obviously
 	DefaultUploadLimit int                       // Size in bytes of account upload
 	DefaultFileLimit   int                       // Default Amount of files per account
@@ -22,7 +22,7 @@ func GetDefaultConfig() Config {
 		DefaultUploadLimit: 100_000_000,
 		DefaultFileLimit:   1000,
 		UploadSizeLimit:    100_000_000,
-		DataFolder:         "uploads",
+		Datapath:           "uploads.db",
 	}
 }
 
