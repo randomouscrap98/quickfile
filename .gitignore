@@ -11,6 +11,7 @@
 quickfile
 uploads
 uploads.db
+ignore
 
 
 # Test binary, built with `go test -c`

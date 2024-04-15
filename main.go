@@ -64,25 +64,25 @@ func main() {
 	http.ListenAndServe(fmt.Sprintf(":%d", config.Port), r)
 }
 
-// Generate a random name of only lowercase letters of the given length
-func GetRandomName(length int) string {
-	result := make([]byte, length)
-	for i := 0; i < length; i++ {
-		result[i] = byte(int('a') + rand.Intn(26))
-	}
-	return string(result)
-}
-
-// Generate a random name (including expiration) of only lowercase letters of given length
-func GetRandomNameExpire(length int, expire time.Duration) string {
-	return fmt.Sprintf("%s_%s", GetRandomName(length), time.Now().Add(expire).Format("200601021504"))
-}
-
-// Create a file from the given reader with the given expiration and return the
-// path to the file (relative to the upload folder)
-func SaveFile(extension string, file io.Reader, expire time.Duration) (string, error) {
-	return "", nil
-}
+// // Generate a random name of only lowercase letters of the given length
+// func GetRandomName(length int) string {
+// 	result := make([]byte, length)
+// 	for i := 0; i < length; i++ {
+// 		result[i] = byte(int('a') + rand.Intn(26))
+// 	}
+// 	return string(result)
+// }
+//
+// // Generate a random name (including expiration) of only lowercase letters of given length
+// func GetRandomNameExpire(length int, expire time.Duration) string {
+// 	return fmt.Sprintf("%s_%s", GetRandomName(length), time.Now().Add(expire).Format("200601021504"))
+// }
+//
+// // Create a file from the given reader with the given expiration and return the
+// // path to the file (relative to the upload folder)
+// func SaveFile(extension string, file io.Reader, expire time.Duration) (string, error) {
+// 	return "", nil
+// }
 
 func GetIndex(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("welcome"))
