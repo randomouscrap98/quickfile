@@ -31,6 +31,7 @@ type Config struct {
 	DefaultFileLimit   int                       // Default Amount of files per account
 	UploadSizeLimit    int                       // Individual file upload limit
 	MaxFileTags        int                       // Maximum amount of tags on a single file
+	ResultsPerPage     int                       // Amount of files to show per page
 	DefaultMinExpire   Duration                  // Min expire measured in minutes
 	DefaultExpire      Duration                  // Default expiration value if none is set
 	DefaultMaxExpire   Duration                  // Maximum allowed expiration
@@ -47,6 +48,7 @@ func GetDefaultConfig() Config {
 		DefaultFileLimit:   1000,
 		UploadSizeLimit:    100_000_000,
 		MaxFileTags:        10,
+		ResultsPerPage:     100,
 		Datapath:           "uploads.db",
 		DefaultMinExpire:   Duration(5 * time.Minute),
 		DefaultMaxExpire:   Duration(72 * time.Hour),
