@@ -52,7 +52,7 @@ func main() {
 	// Create the upload folder
 	//err = os.MkdirAll(config.DataFolder, os.ModePerm)
 	must(CreateTables(config.Datapath))
-	fmt.Printf("Data location: %s\n", config.Datapath)
+	fmt.Printf("Working database at: %s\n", config.Datapath)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)

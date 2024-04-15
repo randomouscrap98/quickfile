@@ -13,6 +13,7 @@ type Config struct {
 	DefaultFileLimit   int                       // Default Amount of files per account
 	UploadSizeLimit    int                       // Individual file upload limit
 	Accounts           map[string]*AccountConfig // The accounts usable
+	AllowedMimeTypes   []string                  // If set, only allow mimetypes from this list
 }
 
 func GetDefaultConfig() Config {
