@@ -41,6 +41,7 @@ type Config struct {
 
 func GetDefaultConfig() Config {
 	return Config{
+		Accounts:           make(map[string]*AccountConfig),
 		Timeout:            Duration(60 * time.Second),
 		Port:               5007,
 		TotalUploadLimit:   1_000_000_000, // 1gb

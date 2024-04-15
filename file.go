@@ -7,6 +7,7 @@ import (
 	"mime"
 	"path"
 	"slices"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -60,7 +61,7 @@ func OpenChunkReader(id int64, config *Config) (io.ReadCloser, error) {
 func (cr *ChunkReader) Read(out []byte) (int, error) {
 	// If our buffer is empty, read the next chunk into it from the database
 	if len(cr.Buffer) == 0 {
-		err := cr.Stmt.QueryRow(cr.Fid, cr.CurrentId).Scan(&cr.CurrentId, cr.Buffer)
+		err := cr.Stmt.QueryRow(cr.Fid, cr.CurrentId).Scan(&cr.CurrentId, &cr.Buffer)
 		if err != nil {
 			if err != sql.ErrNoRows {
 				// Something really unexpected happened
@@ -99,11 +100,17 @@ func (cr *ChunkReader) Close() error {
 
 // Function to generate placeholders for SQL query
 func sliceToPlaceholder[T any](slice []T) string {
-	placeholders := make([]rune, len(slice))
-	for i := range placeholders {
-		placeholders[i] = '?'
+	var sb strings.Builder
+	ph := []byte("?,")
+	phlast := []byte("?")
+	for i := range slice {
+		if i == len(slice)-1 {
+			sb.Write(phlast)
+		} else {
+			sb.Write(ph)
+		}
 	}
-	return fmt.Sprintf("%s", placeholders)
+	return sb.String()
 }
 
 func sliceToAny[T any](slice []T) []any {
@@ -184,7 +191,7 @@ func GetUserFileSize(user string, config *Config) (int64, error) {
 	defer db.Close()
 	var length int64
 	err = db.QueryRow(
-		"SELECT SUM(length) FROM meta WHERE f.account = ? AND (expire IS NULL OR expire > ?)",
+		"SELECT IFNULL(SUM(length), 0) FROM meta WHERE account = ? AND (expire IS NULL OR expire > ?)",
 		user, time.Now(),
 	).Scan(&length)
 	return length, err
@@ -199,7 +206,7 @@ func GetTotalFileSize(config *Config) (int64, error) {
 	defer db.Close()
 	var length int64
 	err = db.QueryRow(
-		"SELECT SUM(length) FROM meta WHERE (expire IS NULL OR expire > ?)",
+		"SELECT IFNULL(SUM(length), 0) FROM meta WHERE (expire IS NULL OR expire > ?)",
 		time.Now(),
 	).Scan(&length)
 	return length, err
@@ -237,7 +244,8 @@ func FilePrecheck(meta *FileInsertMeta, config *Config) (string, int64, error) {
 
 	// Check some other values for validity
 	if Duration(meta.Expire) < acconf.MinExpire || Duration(meta.Expire) > acconf.MaxExpire {
-		return "", 0, fmt.Errorf("invalid expire duration: %s -> %s", acconf.MinExpire, acconf.MaxExpire)
+		return "", 0, fmt.Errorf("invalid expire duration: %s -> %s",
+			time.Duration(acconf.MinExpire), time.Duration(acconf.MaxExpire))
 	}
 
 	// Go figure out the mimetype and make sure it's valid (don't actually check the file)
@@ -277,7 +285,7 @@ func GetFilesById(ids []int64, config *Config) (map[int64]*UploadFile, error) {
 	anyIds := sliceToAny(ids)
 
 	// Go get the main data
-	rows, err := db.Query(fmt.Sprintf("SELECT * FROM meta WHERE id IN (%s)", placeholder), anyIds...)
+	rows, err := db.Query(fmt.Sprintf("SELECT * FROM meta WHERE fid IN (%s)", placeholder), anyIds...)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +303,7 @@ func GetFilesById(ids []int64, config *Config) (map[int64]*UploadFile, error) {
 		result[thisFile.ID] = &thisFile
 	}
 
-	rows, err = db.Query(fmt.Sprintf("SELECT fid,tag FROM tags WHERE id IN (%s)", placeholder), anyIds...)
+	rows, err = db.Query(fmt.Sprintf("SELECT fid,tag FROM tags WHERE fid IN (%s)", placeholder), anyIds...)
 	if err != nil {
 		return nil, err
 	}
@@ -361,8 +369,8 @@ func InsertFile(meta *FileInsertMeta, file io.Reader, config *Config) (*UploadFi
 
 	// Insert the main file entry
 	sqlresult, err := tx.Exec(
-		"INSERT INTO meta(name, account, mime, created, expire) VALUES(?,?,?,?,?)",
-		meta.Filename, meta.Account, mimeType, time.Now(), time.Now().Add(meta.Expire),
+		"INSERT INTO meta(name, account, mime, created, expire, length) VALUES(?,?,?,?,?,?)",
+		meta.Filename, meta.Account, mimeType, time.Now(), time.Now().Add(meta.Expire), 0,
 	)
 	if err != nil {
 		return nil, err
