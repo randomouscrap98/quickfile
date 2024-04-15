@@ -2,13 +2,15 @@ package main
 
 import (
 	"fmt"
-	"io"
+	//"io"
 	"log"
-	"math/rand"
+	//"math/rand"
 	"net/http"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/randomouscrap98/quickfile"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -32,13 +34,13 @@ func must(err error) {
 }
 
 func main() {
-	var config Config
+	var config quickfile.Config
 
 	// Read the config. It's OK if it doesn't exist
 	configData, err := os.ReadFile(ConfigFile)
 	if err != nil {
 		log.Printf("WARN: Can't read config file: %s", err)
-		config = GetDefaultConfig()
+		config = quickfile.GetDefaultConfig()
 	} else {
 		// If the config exists, it MUST be parsable.
 		err = toml.Unmarshal(configData, &config)
@@ -51,12 +53,12 @@ func main() {
 
 	// Create the upload folder
 	//err = os.MkdirAll(config.DataFolder, os.ModePerm)
-	must(CreateTables(config.Datapath))
+	must(quickfile.CreateTables(&config))
 	fmt.Printf("Working database at: %s\n", config.Datapath)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
-	r.Use(middleware.Timeout(time.Duration(config.Timeout * float64(time.Second))))
+	r.Use(middleware.Timeout(time.Duration(config.Timeout)))
 
 	r.Get("/", GetIndex)
 	r.Post("/", PostIndex)

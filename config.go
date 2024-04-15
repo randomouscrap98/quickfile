@@ -1,4 +1,4 @@
-package main
+package quickfile
 
 import (
 	"time"
@@ -58,7 +58,11 @@ func GetDefaultConfig() Config {
 
 // Apply the defaults to all the accounts so you can directly use the values
 func (c *Config) ApplyDefaults() {
-	for _, v := range c.Accounts {
+	for k, v := range c.Accounts {
+		if v == nil {
+			v = &AccountConfig{}
+			c.Accounts[k] = v
+		}
 		v.UploadLimit = max(v.UploadLimit, c.DefaultUploadLimit)
 		v.FileLimit = max(v.FileLimit, c.DefaultFileLimit)
 		v.MinExpire = max(v.MinExpire, c.DefaultMinExpire)
