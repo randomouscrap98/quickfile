@@ -3,6 +3,7 @@ module github.com/randomouscrap98/quickfile
 go 1.21
 
 require (
+	github.com/chi-middleware/proxy v1.1.1
 	github.com/dustin/go-humanize v1.0.1
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-chi/httprate v0.9.0

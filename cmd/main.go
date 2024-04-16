@@ -15,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httprate"
+   "github.com/chi-middleware/proxy"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -54,6 +55,7 @@ func initServer(config *quickfile.Config) (chi.Router, *http.Server) {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Timeout(time.Duration(config.Timeout)))
+   r.Use(proxy.ForwardedHeaders())
 	r.Use(httprate.LimitByIP(config.RateLimitCount, time.Duration(config.RateLimitInterval)))
 	s := &http.Server{
 		Addr:           fmt.Sprintf(":%d", config.Port),
