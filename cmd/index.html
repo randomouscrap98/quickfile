@@ -25,6 +25,28 @@
     .spacer {
       flex: auto;
     }
+
+    .tableform {
+      display: table;
+    }
+
+    .tableform label {
+      display: table-row;
+    }
+
+    .tableform label>* {
+      display: table-cell;
+    }
+
+    .tableform label span {
+      padding-right: 0.75em;
+      text-align: right;
+    }
+
+    .tableform label input {
+      width: 100%;
+      box-sizing: border-box;
+    }
   </style>
 </head>
 
@@ -37,10 +59,23 @@
       <input type="submit" value="Set account">
     </form>
     {{else}}
-    <form enctype='multipart/form-data' action="upload" method="POST">
-      <!--<input type="text" placeholder="Account" name="account">-->
-      <input type="file" name="file">
-      <input type="submit" value="Upload">
+    <form class="tableform" id="uploadform" enctype='multipart/form-data' action="upload" method="POST">
+      <label>
+        <span>File:</span>
+        <input type="file" name="file">
+      </label>
+      <label>
+        <span>Tags:</span>
+        <input type="text" name="tags" placeholder="Tags (space sep)">
+      </label>
+      <label>
+        <span>Expire:</span>
+        <input type="text" name="expire" placeholder="Expire (1d4h7m)" value="{{.defaultexpire}}">
+      </label>
+      <label>
+        <span></span>
+        <input type="submit" value="Upload">
+      </label>
     </form>
     {{end}}
   </center>
@@ -53,7 +88,7 @@
 
   <footer>
     <span id="servertime">Server time: {{.time}}</span>
-    <span id="totalsize">Total size: {{.size}}</span>
+    <span id="statistics">{{.statistics.Count}} files | {{.statistics.TotalSize | BytesI64}}</span>
     <span class="spacer"></span>
     <span id="credits"><a href="https://github.com/randomouscrap98/quickfile">haloopdy - 2024</a></span>
   </footer>

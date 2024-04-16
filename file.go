@@ -140,21 +140,6 @@ func CreateTables(config *Config) error {
 	return nil
 }
 
-// Get the (current) number of files for this user.
-func GetUserFileCount(user string, config *Config) (int, error) {
-	db, err := config.OpenDb()
-	if err != nil {
-		return 0, err
-	}
-	defer db.Close()
-	var count int
-	err = db.QueryRow(
-		"SELECT COUNT(*) FROM meta WHERE account = ? AND (expire IS NULL OR expire > ?)",
-		user, time.Now(),
-	).Scan(&count)
-	return count, err
-}
-
 // Check file upload for everything we possibly can before actually attempting the upload
 func FilePrecheck(meta *FileInsertMeta, config *Config) (string, int64, error) {
 	// Make sure the account exists
@@ -168,21 +153,15 @@ func FilePrecheck(meta *FileInsertMeta, config *Config) (string, int64, error) {
 	}
 
 	// Go out to the db and check how many files they have. If they're over, die
-	fcount, err := GetUserFileCount(meta.Account, config)
+	userStats, err := GetFileStatistics(meta.Account, config)
 	if err != nil {
 		return "", 0, err
 	}
-	if fcount >= acconf.FileLimit {
-		return "", 0, fmt.Errorf("too many files: %d", fcount)
+	if userStats.Count >= int64(acconf.FileLimit) {
+		return "", 0, fmt.Errorf("too many files: %d", userStats.Count)
 	}
-
-	// Find out the user's current total file usage
-	length, err := GetUserFileSize(meta.Account, config)
-	if err != nil {
-		return "", 0, err
-	}
-	if length >= acconf.UploadLimit {
-		return "", 0, fmt.Errorf("over total upload limit: %d", length)
+	if userStats.TotalSize >= acconf.UploadLimit {
+		return "", 0, fmt.Errorf("over total upload limit: %d", userStats.TotalSize)
 	}
 
 	// Check some other values for validity
@@ -212,7 +191,7 @@ func FilePrecheck(meta *FileInsertMeta, config *Config) (string, int64, error) {
 		}
 	}
 
-	return mimeType, acconf.UploadLimit - length, nil
+	return mimeType, acconf.UploadLimit - userStats.TotalSize, nil
 }
 
 // Perform the entire operation of inserting a file into the database, including all checks
@@ -228,11 +207,11 @@ func InsertFile(meta *FileInsertMeta, file io.Reader, config *Config) (*UploadFi
 	}
 
 	// Go see how much space is left for us
-	totalSize, err := GetTotalFileSize(config)
+	sysstats, err := GetFileStatistics("", config)
 	if err != nil {
 		return nil, err
 	}
-	totalRemaining := config.TotalUploadLimit - totalSize
+	totalRemaining := config.TotalUploadLimit - sysstats.TotalSize
 
 	// Open the database file
 	db, err := config.OpenDb()

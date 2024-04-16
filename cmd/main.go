@@ -74,13 +74,7 @@ func main() {
 		data := make(map[string]any)
 		data["account"] = ""
 		data["time"] = time.Now().Format(time.RFC3339)
-		size, err := config.DbSize()
-		if err != nil {
-			log.Printf("WARN: couldn't get dbsize: %s\n", err)
-			data["size"] = "???"
-		} else {
-			data["size"] = humanize.Bytes(uint64(size))
-		}
+		data["defaultexpire"] = time.Duration(config.DefaultExpire)
 		account, err := r.Cookie("account")
 		if err == nil {
 			_, ok := config.Accounts[account.Value]
@@ -88,8 +82,18 @@ func main() {
 				data["account"] = account.Value
 			}
 		}
+		statistics, err := quickfile.GetFileStatistics("", config)
+		if err != nil {
+			log.Printf("WARN: couldn't get statistics: %s\n", err)
+			data["statistics"] = &quickfile.FileStatistics{}
+		} else {
+			data["statistics"] = statistics
+		}
 
-		tmpl, err := template.ParseFiles("index.html")
+		tmpl, err := template.New("index.html").Funcs(template.FuncMap{
+			"Bytes":    humanize.Bytes,
+			"BytesI64": func(n int64) string { return humanize.Bytes(uint64(n)) },
+		}).ParseFiles("index.html")
 		if err != nil {
 			log.Printf("ERROR: can't load template: %s\n", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)

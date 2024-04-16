@@ -5,34 +5,52 @@ import (
 	"time"
 )
 
-// Get the (current) total file size for this user
-func GetUserFileSize(user string, config *Config) (int64, error) {
-	db, err := config.OpenDb()
-	if err != nil {
-		return 0, err
-	}
-	defer db.Close()
-	var length int64
-	err = db.QueryRow(
-		"SELECT IFNULL(SUM(length), 0) FROM meta WHERE account = ? AND (expire IS NULL OR expire > ?)",
-		user, time.Now(),
-	).Scan(&length)
-	return length, err
+type FileStatistics struct {
+	TotalSize int64
+	Count     int64
 }
 
-// Get the (current) total file size overall (all files)
-func GetTotalFileSize(config *Config) (int64, error) {
+// Retrieve file statistics for a given user. If no user is given, the global
+// file statistics will be given
+func GetFileStatistics(user string, config *Config) (*FileStatistics, error) {
 	db, err := config.OpenDb()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	defer db.Close()
-	var length int64
-	err = db.QueryRow(
-		"SELECT IFNULL(SUM(length), 0) FROM meta WHERE (expire IS NULL OR expire > ?)",
-		time.Now(),
-	).Scan(&length)
-	return length, err
+	var result FileStatistics
+	if user == "" {
+		err = db.QueryRow(
+			"SELECT COUNT(*) FROM meta WHERE (expire IS NULL OR expire > ?)",
+			time.Now(),
+		).Scan(&result.Count)
+		if err != nil {
+			return nil, err
+		}
+		err = db.QueryRow(
+			"SELECT IFNULL(SUM(length), 0) FROM meta WHERE (expire IS NULL OR expire > ?)",
+			time.Now(),
+		).Scan(&result.TotalSize)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err = db.QueryRow(
+			"SELECT COUNT(*) FROM meta WHERE account = ? AND (expire IS NULL OR expire > ?)",
+			user, time.Now(),
+		).Scan(&result.Count)
+		if err != nil {
+			return nil, err
+		}
+		err = db.QueryRow(
+			"SELECT IFNULL(SUM(length), 0) FROM meta WHERE account = ? AND (expire IS NULL OR expire > ?)",
+			user, time.Now(),
+		).Scan(&result.TotalSize)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &result, nil
 }
 
 // Lookup a set of files by id. Get all information about them.
