@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"testing"
@@ -127,5 +128,46 @@ func TestLive(t *testing.T) {
 	}
 	if !bytes.Equal(exactBuffer, expectedData) {
 		t.Fatalf("Reader produced different data\n")
+	}
+	// now we generate data that spans various sizes:
+	// - Exactly 1 chunk
+	// - Exactly 2 chunks
+	// - 3 chunks with a bit in the third
+	lengths := []int{ChunkSize, ChunkSize * 2, ChunkSize*2 + 69}
+	for _, l := range lengths {
+		expectedData = make([]byte, l)
+		for i := 0; i < len(expectedData); i++ {
+			expectedData[i] = byte(rand.Intn(256)) //i & 0xFF)
+		}
+		meta.Filename = fmt.Sprintf("file_%d.zip", l)
+		meta.Tags = append(meta.Tags, fmt.Sprintf("extra:%d", l))
+		file = bytes.NewBuffer(expectedData)
+		result, err = InsertFile(&meta, file, config)
+		if err != nil {
+			t.Fatalf("Failed to insert %s: %s", meta.Filename, err)
+		}
+		if result.Length != l {
+			t.Fatalf("Length not right for %s: %d vs %d", meta.Filename, result.Length, l)
+		}
+		if len(result.Tags) != len(meta.Tags) {
+			t.Fatalf("Tag amount doesn't match for %s: %d vs %d\n", meta.Filename, len(result.Tags), len(meta.Tags))
+		}
+		// Now we do the reader stuff... again
+		reader, err := OpenChunkReader(result.ID, config)
+		if err != nil {
+			t.Fatalf("Failed to open chunk reader for %s: %s\n", meta.Filename, err)
+		}
+		exactBuffer = make([]byte, len(expectedData))
+		exactLen, err = io.ReadFull(reader, exactBuffer)
+		if err != nil {
+			t.Fatalf("Error while reading exact chunk for %s: %s\n", meta.Filename, err)
+		}
+		if exactLen != len(exactBuffer) {
+			t.Fatalf("Read length doesn't match for %s: %d vs %d\n", meta.Filename, exactLen, len(exactBuffer))
+		}
+		if !bytes.Equal(exactBuffer, expectedData) {
+			t.Fatalf("Reader produced different data for %s\n", meta.Filename)
+		}
+		log.Printf("Passed: %s\n", meta.Filename)
 	}
 }

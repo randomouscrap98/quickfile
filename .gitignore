@@ -9,6 +9,7 @@
 *.dylib
 
 quickfile
+cmd/cmd
 uploads
 uploads.db
 ignore

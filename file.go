@@ -121,6 +121,22 @@ func sliceToAny[T any](slice []T) []any {
 	return anys
 }
 
+// A very slow and memory ineficient way to get the distinct
+// set of items from a slice. Order is not preserved
+func sliceDistinct[T comparable](slice []T) []T {
+	set := make(map[T]bool)
+	for _, item := range slice {
+		set[item] = true
+	}
+	result := make([]T, len(set))
+	i := 0
+	for k := range set {
+		result[i] = k
+		i += 1
+	}
+	return result
+}
+
 // Create the entire db structure from the given config. Safe to call repeatedly
 func CreateTables(config *Config) error {
 	db, err := sql.Open(SqliteKey, config.Datapath)
@@ -414,7 +430,8 @@ func insertTags(fid int64, tags []string, tx *sql.Tx) error {
 	}
 	defer tagInsert.Close()
 
-	for _, tag := range tags {
+	distinctTags := sliceDistinct(tags)
+	for _, tag := range distinctTags {
 		_, err = tagInsert.Exec(fid, tag)
 		if err != nil {
 			return err
@@ -438,23 +455,27 @@ func insertChunks(fid int64, file io.Reader, tx *sql.Tx, userRemaining int64, to
 	totalLength := int64(0)
 
 	for stillReading {
-		len, err := io.ReadFull(file, chunk)
+		length, err := io.ReadFull(file, chunk)
 		if err != nil {
 			if err == io.ErrUnexpectedEOF || err == io.EOF {
-				chunk = chunk[:len]
+				chunk = chunk[:length]
 				stillReading = false
 			} else {
 				return 0, err
 			}
 		}
-		totalLength += int64(len)
+		// Do nothing for 0 length reads
+		if length == 0 {
+			continue
+		}
+		totalLength += int64(length)
 		if userRemaining-totalLength < 0 {
 			return 0, fmt.Errorf("out of user storage")
 		}
 		if totalRemaining-totalLength < 0 {
 			return 0, fmt.Errorf("out of system storage")
 		}
-		_, err = chunkInsert.Exec(fid, len, chunk)
+		_, err = chunkInsert.Exec(fid, length, chunk)
 		if err != nil {
 			return 0, err
 		}
