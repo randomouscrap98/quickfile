@@ -8,11 +8,13 @@
 *.so
 *.dylib
 
+# My files
 quickfile
 cmd/cmd
 uploads
 uploads.db
 ignore
+config.toml
 
 
 # Test binary, built with `go test -c`

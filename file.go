@@ -7,15 +7,11 @@ import (
 	"mime"
 	"path"
 	"slices"
-	"strings"
 	"time"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
 	ChunkSize = 65536
-	SqliteKey = "sqlite3"
 )
 
 type FileInsertMeta struct {
@@ -46,7 +42,7 @@ type ChunkReader struct {
 
 // Open a special reader which reads data from the sqlite database
 func OpenChunkReader(id int64, config *Config) (io.ReadCloser, error) {
-	db, err := sql.Open(SqliteKey, config.Datapath)
+	db, err := config.OpenDb()
 	if err != nil {
 		return nil, err
 	}
@@ -98,48 +94,9 @@ func (cr *ChunkReader) Close() error {
 	return err2
 }
 
-// Function to generate placeholders for SQL query
-func sliceToPlaceholder[T any](slice []T) string {
-	var sb strings.Builder
-	ph := []byte("?,")
-	phlast := []byte("?")
-	for i := range slice {
-		if i == len(slice)-1 {
-			sb.Write(phlast)
-		} else {
-			sb.Write(ph)
-		}
-	}
-	return sb.String()
-}
-
-func sliceToAny[T any](slice []T) []any {
-	anys := make([]any, len(slice))
-	for i := range anys {
-		anys[i] = slice[i]
-	}
-	return anys
-}
-
-// A very slow and memory ineficient way to get the distinct
-// set of items from a slice. Order is not preserved
-func sliceDistinct[T comparable](slice []T) []T {
-	set := make(map[T]bool)
-	for _, item := range slice {
-		set[item] = true
-	}
-	result := make([]T, len(set))
-	i := 0
-	for k := range set {
-		result[i] = k
-		i += 1
-	}
-	return result
-}
-
 // Create the entire db structure from the given config. Safe to call repeatedly
 func CreateTables(config *Config) error {
-	db, err := sql.Open(SqliteKey, config.Datapath)
+	db, err := config.OpenDb()
 	if err != nil {
 		return err
 	}
@@ -185,7 +142,7 @@ func CreateTables(config *Config) error {
 
 // Get the (current) number of files for this user.
 func GetUserFileCount(user string, config *Config) (int, error) {
-	db, err := sql.Open(SqliteKey, config.Datapath)
+	db, err := config.OpenDb()
 	if err != nil {
 		return 0, err
 	}
@@ -196,36 +153,6 @@ func GetUserFileCount(user string, config *Config) (int, error) {
 		user, time.Now(),
 	).Scan(&count)
 	return count, err
-}
-
-// Get the (current) total file size for this user
-func GetUserFileSize(user string, config *Config) (int64, error) {
-	db, err := sql.Open(SqliteKey, config.Datapath)
-	if err != nil {
-		return 0, err
-	}
-	defer db.Close()
-	var length int64
-	err = db.QueryRow(
-		"SELECT IFNULL(SUM(length), 0) FROM meta WHERE account = ? AND (expire IS NULL OR expire > ?)",
-		user, time.Now(),
-	).Scan(&length)
-	return length, err
-}
-
-// Get the (current) total file size overall (all files)
-func GetTotalFileSize(config *Config) (int64, error) {
-	db, err := sql.Open(SqliteKey, config.Datapath)
-	if err != nil {
-		return 0, err
-	}
-	defer db.Close()
-	var length int64
-	err = db.QueryRow(
-		"SELECT IFNULL(SUM(length), 0) FROM meta WHERE (expire IS NULL OR expire > ?)",
-		time.Now(),
-	).Scan(&length)
-	return length, err
 }
 
 // Check file upload for everything we possibly can before actually attempting the upload
@@ -288,68 +215,6 @@ func FilePrecheck(meta *FileInsertMeta, config *Config) (string, int64, error) {
 	return mimeType, acconf.UploadLimit - length, nil
 }
 
-// Lookup a set of files by id. Get all information about them.
-func GetFilesById(ids []int64, config *Config) (map[int64]*UploadFile, error) {
-	db, err := sql.Open(SqliteKey, config.Datapath)
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-	result := make(map[int64]*UploadFile)
-
-	placeholder := sliceToPlaceholder(ids)
-	anyIds := sliceToAny(ids)
-
-	// Go get the main data
-	rows, err := db.Query(fmt.Sprintf("SELECT * FROM meta WHERE fid IN (%s)", placeholder), anyIds...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		thisFile := UploadFile{
-			Tags: make([]string, 0, 5),
-		}
-		err := rows.Scan(&thisFile.ID, &thisFile.Name, &thisFile.Account, &thisFile.Mime,
-			&thisFile.Date, &thisFile.Expire, &thisFile.Length)
-		if err != nil {
-			return nil, err
-		}
-		result[thisFile.ID] = &thisFile
-	}
-
-	rows, err = db.Query(fmt.Sprintf("SELECT fid,tag FROM tags WHERE fid IN (%s)", placeholder), anyIds...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var fid int64
-		var tag string
-		err := rows.Scan(&fid, &tag)
-		if err != nil {
-			return nil, err
-		}
-		result[fid].Tags = append(result[fid].Tags, tag)
-	}
-
-	return result, err
-}
-
-func GetFileById(id int64, config *Config) (*UploadFile, error) {
-	results, err := GetFilesById([]int64{id}, config)
-	if err != nil {
-		return nil, err
-	}
-	result, ok := results[id]
-	if !ok {
-		return nil, fmt.Errorf("not found: %d", id)
-	}
-	return result, nil
-}
-
 // Perform the entire operation of inserting a file into the database, including all checks
 // necessary to ensure valid operation
 func InsertFile(meta *FileInsertMeta, file io.Reader, config *Config) (*UploadFile, error) {
@@ -370,7 +235,7 @@ func InsertFile(meta *FileInsertMeta, file io.Reader, config *Config) (*UploadFi
 	totalRemaining := config.TotalUploadLimit - totalSize
 
 	// Open the database file
-	db, err := sql.Open(SqliteKey, config.Datapath)
+	db, err := config.OpenDb()
 	if err != nil {
 		return nil, err
 	}

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quick File Uploader</title>
+  <style>
+    body {
+      font-family: sans-serif;
+    }
+
+    footer {
+      display: flex;
+      flex-direction: row;
+      gap: 0.75em;
+      font-size: 0.9em;
+      color: #777;
+    }
+
+    footer>* {
+      flex: none;
+    }
+
+    .spacer {
+      flex: auto;
+    }
+  </style>
+</head>
+
+<body>
+  <center>
+    <h2>Quick File Uploader</h2>
+    {{if eq .account ""}}
+    <form action="setuser" method="POST">
+      <input type="text" placeholder="Account" name="account">
+      <input type="submit" value="Set account">
+    </form>
+    {{else}}
+    <form enctype='multipart/form-data' action="upload" method="POST">
+      <!--<input type="text" placeholder="Account" name="account">-->
+      <input type="file" name="file">
+      <input type="submit" value="Upload">
+    </form>
+    {{end}}
+  </center>
+
+  <!-- File list -->
+  <hr>
+  <div id="filelist">
+  </div>
+  <hr>
+
+  <footer>
+    <span id="servertime">Server time: {{.time}}</span>
+    <span id="totalsize">Total size: {{.size}}</span>
+    <span class="spacer"></span>
+    <span id="credits"><a href="https://github.com/randomouscrap98/quickfile">haloopdy - 2024</a></span>
+  </footer>
+
+</body>
+
+</html>

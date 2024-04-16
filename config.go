@@ -1,7 +1,11 @@
 package quickfile
 
 import (
+	"database/sql"
+	"os"
 	"time"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Duration time.Duration
@@ -30,8 +34,12 @@ type Config struct {
 	DefaultUploadLimit int64                     // Size in bytes of account upload
 	DefaultFileLimit   int                       // Default Amount of files per account
 	UploadSizeLimit    int                       // Individual file upload limit
+	SimpleFormLimit    int                       // Size that a simple form can be (not file uploads)
+	HeaderLimit        int                       // max size of the http header
 	MaxFileTags        int                       // Maximum amount of tags on a single file
 	ResultsPerPage     int                       // Amount of files to show per page
+	RateLimitInterval  Duration                  // span of time for rate limiting
+	RateLimitCount     int                       // Amount of times a user from a single IP can access per interval
 	DefaultMinExpire   Duration                  // Min expire measured in minutes
 	DefaultExpire      Duration                  // Default expiration value if none is set
 	DefaultMaxExpire   Duration                  // Maximum allowed expiration
@@ -42,7 +50,7 @@ type Config struct {
 func GetDefaultConfig() Config {
 	return Config{
 		Accounts:           make(map[string]*AccountConfig),
-		Timeout:            Duration(60 * time.Second),
+		Timeout:            Duration(120 * time.Second),
 		Port:               5007,
 		TotalUploadLimit:   1_000_000_000, // 1gb
 		DefaultUploadLimit: 100_000_000,
@@ -50,7 +58,11 @@ func GetDefaultConfig() Config {
 		UploadSizeLimit:    100_000_000,
 		MaxFileTags:        10,
 		ResultsPerPage:     100,
+		SimpleFormLimit:    100_000,
+		HeaderLimit:        100_000,
 		Datapath:           "uploads.db",
+		RateLimitCount:     100,
+		RateLimitInterval:  Duration(1 * time.Minute),
 		DefaultMinExpire:   Duration(5 * time.Minute),
 		DefaultMaxExpire:   Duration(72 * time.Hour),
 		DefaultExpire:      Duration(24 * time.Hour),
@@ -69,4 +81,21 @@ func (c *Config) ApplyDefaults() {
 		v.MinExpire = max(v.MinExpire, c.DefaultMinExpire)
 		v.MaxExpire = max(v.MaxExpire, c.DefaultMaxExpire)
 	}
+}
+
+func (c *Config) OpenDb() (*sql.DB, error) {
+	return sql.Open("sqlite3", c.Datapath)
+}
+
+func (c *Config) DbSize() (int64, error) {
+	file, err := os.Open(c.Datapath)
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return 0, err
+	}
+	return fileInfo.Size(), nil
 }

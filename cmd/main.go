@@ -2,9 +2,8 @@ package main
 
 import (
 	"fmt"
-	//"io"
+	"html/template"
 	"log"
-	//"math/rand"
 	"net/http"
 	"os"
 	"sync"
@@ -12,10 +11,10 @@ import (
 
 	"github.com/randomouscrap98/quickfile"
 
+	"github.com/dustin/go-humanize"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-
-	//"github.com/gosimple/slug"
+	"github.com/go-chi/httprate"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -33,62 +32,102 @@ func must(err error) {
 	}
 }
 
-func main() {
-	var config quickfile.Config
-
+func initConfig() *quickfile.Config {
+	config := quickfile.GetDefaultConfig()
 	// Read the config. It's OK if it doesn't exist
 	configData, err := os.ReadFile(ConfigFile)
 	if err != nil {
 		log.Printf("WARN: Can't read config file: %s", err)
-		config = quickfile.GetDefaultConfig()
 	} else {
 		// If the config exists, it MUST be parsable.
 		err = toml.Unmarshal(configData, &config)
 		must(err)
 	}
-
 	// Get all the defaults propogated
 	config.ApplyDefaults()
-	fmt.Printf("Listening on port %d\n", config.Port)
-
-	// Create the upload folder
-	//err = os.MkdirAll(config.DataFolder, os.ModePerm)
 	must(quickfile.CreateTables(&config))
-	fmt.Printf("Working database at: %s\n", config.Datapath)
+	return &config
+}
 
+// Initialize the baseline router and server, but don't actually set up any routes.
+func initServer(config *quickfile.Config) (chi.Router, *http.Server) {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Timeout(time.Duration(config.Timeout)))
-
-	r.Get("/", GetIndex)
-	r.Post("/", PostIndex)
-
-	http.ListenAndServe(fmt.Sprintf(":%d", config.Port), r)
+	r.Use(httprate.LimitByIP(config.RateLimitCount, time.Duration(config.RateLimitInterval)))
+	s := &http.Server{
+		Addr:           fmt.Sprintf(":%d", config.Port),
+		Handler:        r,
+		MaxHeaderBytes: config.HeaderLimit,
+	}
+	fmt.Printf("Listening on port %d, db = %s\n", config.Port, config.Datapath)
+	fmt.Printf("Rate limit is %d per %s, timeout = %s\n",
+		config.RateLimitCount, time.Duration(config.RateLimitInterval), time.Duration(config.Timeout))
+	return r, s
 }
 
-// // Generate a random name of only lowercase letters of the given length
-// func GetRandomName(length int) string {
-// 	result := make([]byte, length)
-// 	for i := 0; i < length; i++ {
-// 		result[i] = byte(int('a') + rand.Intn(26))
-// 	}
-// 	return string(result)
-// }
-//
-// // Generate a random name (including expiration) of only lowercase letters of given length
-// func GetRandomNameExpire(length int, expire time.Duration) string {
-// 	return fmt.Sprintf("%s_%s", GetRandomName(length), time.Now().Add(expire).Format("200601021504"))
-// }
-//
-// // Create a file from the given reader with the given expiration and return the
-// // path to the file (relative to the upload folder)
-// func SaveFile(extension string, file io.Reader, expire time.Duration) (string, error) {
-// 	return "", nil
-// }
+func main() {
+	config := initConfig()
+	r, s := initServer(config)
 
-func GetIndex(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("welcome"))
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		data := make(map[string]any)
+		data["account"] = ""
+		data["time"] = time.Now().Format(time.RFC3339)
+		size, err := config.DbSize()
+		if err != nil {
+			log.Printf("WARN: couldn't get dbsize: %s\n", err)
+			data["size"] = "???"
+		} else {
+			data["size"] = humanize.Bytes(uint64(size))
+		}
+		account, err := r.Cookie("account")
+		if err == nil {
+			_, ok := config.Accounts[account.Value]
+			if ok {
+				data["account"] = account.Value
+			}
+		}
+
+		tmpl, err := template.ParseFiles("index.html")
+		if err != nil {
+			log.Printf("ERROR: can't load template: %s\n", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		err = tmpl.Execute(w, data)
+		if err != nil {
+			log.Printf("ERROR: can't execute template: %s\n", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+	})
+
+	r.Post("/setuser", func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, int64(config.SimpleFormLimit))
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "Failed to parse form", http.StatusBadRequest)
+			return
+		}
+		// Get form field value
+		account := r.Form.Get("account")
+		_, ok := config.Accounts[account]
+		if ok {
+			http.SetCookie(w, &http.Cookie{
+				Name:  "account",
+				Value: account,
+			})
+		} else {
+			log.Printf("Bad user account attempt: %s", account)
+		}
+		// Redirect to the root of the application
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	})
+
+	r.Post("/upload", PostUpload)
+
+	log.Fatal(s.ListenAndServe())
 }
 
-func PostIndex(w http.ResponseWriter, r *http.Request) {
+func PostUpload(w http.ResponseWriter, r *http.Request) {
 }
