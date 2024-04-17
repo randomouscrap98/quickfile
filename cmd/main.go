@@ -37,27 +37,12 @@ func must(err error) {
 	}
 }
 
-func initConfig(allowRecreate bool) *quickfile.Config {
+func initConfig() *quickfile.Config {
 	config := quickfile.GetDefaultConfig()
 	// Read the config. It's OK if it doesn't exist
 	configData, err := os.ReadFile(ConfigFile)
 	if err != nil {
-		if allowRecreate {
-			result, err := toml.Marshal(config)
-			if err != nil {
-				log.Printf("ERROR: Couldn't marshal config! This is weird: %s\n", err)
-			} else {
-				result = append(result, []byte("\n\n# Add accounts with special overrides\n# [Accounts.SecretObscureName]")...)
-				err = os.WriteFile(ConfigFile, result, 0600)
-				if err != nil {
-					log.Printf("ERROR: Couldn't write default config: %s\n", err)
-				} else {
-					return initConfig(false)
-				}
-			}
-		} else {
-			log.Printf("WARN: Couldn't read config file %s: %s", ConfigFile, err)
-		}
+		log.Printf("WARN: Couldn't read config file %s: %s", ConfigFile, err)
 	} else {
 		// If the config exists, it MUST be parsable.
 		err = toml.Unmarshal(configData, &config)
@@ -68,6 +53,38 @@ func initConfig(allowRecreate bool) *quickfile.Config {
 	must(quickfile.CreateTables(&config))
 	return &config
 }
+
+// func initConfig(allowRecreate bool) *quickfile.Config {
+// 	config := quickfile.GetDefaultConfig()
+// 	// Read the config. It's OK if it doesn't exist
+// 	configData, err := os.ReadFile(ConfigFile)
+// 	if err != nil {
+// 		if allowRecreate {
+// 			result, err := toml.Marshal(config)
+// 			if err != nil {
+// 				log.Printf("ERROR: Couldn't marshal config! This is weird: %s\n", err)
+// 			} else {
+// 				result = append(result, []byte("\n\n# Add accounts with special overrides\n# [Accounts.SecretObscureName]")...)
+// 				err = os.WriteFile(ConfigFile, result, 0600)
+// 				if err != nil {
+// 					log.Printf("ERROR: Couldn't write default config: %s\n", err)
+// 				} else {
+// 					return initConfig(false)
+// 				}
+// 			}
+// 		} else {
+// 			log.Printf("WARN: Couldn't read config file %s: %s", ConfigFile, err)
+// 		}
+// 	} else {
+// 		// If the config exists, it MUST be parsable.
+// 		err = toml.Unmarshal(configData, &config)
+// 		must(err)
+// 	}
+// 	// Get all the defaults propogated
+// 	config.ApplyDefaults()
+// 	must(quickfile.CreateTables(&config))
+// 	return &config
+// }
 
 // Retrieve the user account. Returns the name, the config, and whether it's valid
 func getAccount(config *quickfile.Config, r *http.Request) (string, *quickfile.AccountConfig, bool) {
@@ -164,7 +181,7 @@ func parseTags(tags string) []string {
 }
 
 func main() {
-	config := initConfig(true)
+	config := initConfig()
 	r, s := initServer(config)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -173,7 +190,7 @@ func main() {
 			"Bytes":    humanize.Bytes,
 			"BytesI":   func(n int) string { return humanize.Bytes(uint64(n)) },
 			"BytesI64": func(n int64) string { return humanize.Bytes(uint64(n)) },
-			"NiceDate": func(t time.Time) string { return t.Format(time.RFC3339) },
+			"NiceDate": func(t time.Time) string { return t.UTC().Format(time.RFC3339) },
 		}).ParseFiles("index.html")
 		if err != nil {
 			log.Printf("ERROR: can't load template: %s\n", err)

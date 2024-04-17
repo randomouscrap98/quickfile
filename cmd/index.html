@@ -34,6 +34,10 @@
       color: darkred;
     }
 
+    .hidden {
+      display: none !important;
+    }
+
     #pagelist {
       display: flex;
       flex-direction: row;
@@ -77,6 +81,10 @@
       background-color: rgba(127, 127, 127, 0.1);
     }
 
+    .fileitem .filename {
+      padding-right: 1em;
+    }
+
     .fileitem time {
       color: #777;
       font-size: 0.8em;
@@ -100,7 +108,8 @@
         <span>File:</span>
         <input type="file" name="files">
       </label>
-      <label>
+      <!-- Tags can be set but can't be searched against so we just hide them -->
+      <label class="hidden">
         <span>Tags:</span>
         <input type="text" name="tags" placeholder="Tags (space sep)">
       </label>
@@ -133,7 +142,7 @@
     <div class="fileitem">
       <a href="file/{{.ID}}" class="filename">{{.Name}}</a>
       <span class="filesize">{{.Length | BytesI}}</span>
-      <time class="filedate">{{.Date | NiceDate}}</time>
+      <time class="filedate" title="Expires on: {{.Expire | NiceDate}}">{{.Date | NiceDate}}</time>
     </div>
     {{end}}
   </div>

@@ -2,7 +2,6 @@ package quickfile
 
 import (
 	"database/sql"
-	"fmt"
 	"os"
 	"time"
 
@@ -20,9 +19,10 @@ func (d *Duration) UnmarshalText(b []byte) error {
 	return nil
 }
 
-func (d *Duration) MarshalText() ([]byte, error) {
-	return []byte(fmt.Sprintf("%s", time.Duration(*d))), nil
-}
+// func (d *Duration) MarshalText() ([]byte, error) {
+// 	log.Printf("YOOO")
+// 	return []byte(fmt.Sprintf("%s", time.Duration(*d))), nil
+// }
 
 type AccountConfig struct {
 	UploadLimit int64
