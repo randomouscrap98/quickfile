@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 
+<!-- You can make tweaks to this file to change the styling, or completely redo 
+     it if you want. This is a template go uses to generate the page using data
+     the program provides to it. -->
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -64,6 +68,7 @@
 <body>
   <center>
     <h2>Quick File Uploader</h2>
+    <!-- Login or file upload form -->
     {{if eq .account ""}}
     <form action="setuser" method="POST">
       <input type="text" placeholder="Account" name="account">
@@ -73,7 +78,7 @@
     <form class="tableform" id="uploadform" enctype='multipart/form-data' action="upload" method="POST">
       <label>
         <span>File:</span>
-        <input type="file" name="file">
+        <input type="file" name="files">
       </label>
       <label>
         <span>Tags:</span>
@@ -104,6 +109,13 @@
   <hr>
   {{if len .files}}
   <div id="filelist">
+    {{range .files}}
+    <div class="fileitem">
+      <a href="file/{{.ID}}" class="filename">{{.Name}}</a>
+      <span class="filesize">{{.Length | BytesI}}</span>
+      <time class="filedate">{{.Date | NiceDate}}</time>
+    </div>
+    {{end}}
   </div>
   <div id="pagelist">
     <span>Pages:</span>
@@ -117,7 +129,7 @@
   <hr>
 
   <footer>
-    <span id="servertime">Server time: {{.time}}</span>
+    <span id="servertime">Server time: {{.time | NiceDate}}</span>
     <span id="statistics">{{.statistics.Count}} files | {{.statistics.TotalSize | BytesI64}}</span>
     <span class="spacer"></span>
     <span id="credits"><a href="https://github.com/randomouscrap98/quickfile">haloopdy - 2024</a></span>

@@ -43,6 +43,7 @@ type Config struct {
 	DefaultMinExpire   Duration                  // Min expire measured in minutes
 	DefaultExpire      Duration                  // Default expiration value if none is set
 	DefaultMaxExpire   Duration                  // Maximum allowed expiration
+	CacheTime          Duration                  // How long to cache
 	Accounts           map[string]*AccountConfig // The accounts usable
 	AllowedMimeTypes   []string                  // If set, only allow mimetypes from this list
 }
@@ -66,6 +67,7 @@ func GetDefaultConfig() Config {
 		DefaultMinExpire:   Duration(5 * time.Minute),
 		DefaultMaxExpire:   Duration(72 * time.Hour),
 		DefaultExpire:      Duration(24 * time.Hour),
+		CacheTime:          Duration(365 * 24 * time.Hour),
 	}
 }
 
