@@ -37,12 +37,27 @@ func must(err error) {
 	}
 }
 
-func initConfig() *quickfile.Config {
+func initConfig(allowRecreate bool) *quickfile.Config {
 	config := quickfile.GetDefaultConfig()
 	// Read the config. It's OK if it doesn't exist
 	configData, err := os.ReadFile(ConfigFile)
 	if err != nil {
-		log.Printf("WARN: Can't read config file: %s", err)
+		if allowRecreate {
+			result, err := toml.Marshal(config)
+			if err != nil {
+				log.Printf("ERROR: Couldn't marshal config! This is weird: %s\n", err)
+			} else {
+				result = append(result, []byte("\n\n# Add accounts with special overrides\n# [Accounts.SecretObscureName]")...)
+				err = os.WriteFile(ConfigFile, result, 0600)
+				if err != nil {
+					log.Printf("ERROR: Couldn't write default config: %s\n", err)
+				} else {
+					return initConfig(false)
+				}
+			}
+		} else {
+			log.Printf("WARN: Couldn't read config file %s: %s", ConfigFile, err)
+		}
 	} else {
 		// If the config exists, it MUST be parsable.
 		err = toml.Unmarshal(configData, &config)
@@ -149,7 +164,7 @@ func parseTags(tags string) []string {
 }
 
 func main() {
-	config := initConfig()
+	config := initConfig(true)
 	r, s := initServer(config)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -194,7 +209,7 @@ func main() {
 		w.Header().Set("ETag", fmt.Sprintf("quickfile_%d", fileinfo.ID))
 		w.Header().Set("Last-Modified", fileinfo.Date.UTC().Format(http.TimeFormat))
 		w.Header().Set("Content-Length", fmt.Sprint(fileinfo.Length))
-		w.Header().Set("Cache-Control", fmt.Sprintf("max-age: %d", int64(time.Duration(config.CacheTime).Seconds())))
+		w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d", int64(time.Duration(config.CacheTime).Seconds())))
 		io.Copy(w, reader)
 	})
 

@@ -2,6 +2,7 @@ package quickfile
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"time"
 
@@ -17,6 +18,10 @@ func (d *Duration) UnmarshalText(b []byte) error {
 	}
 	*d = Duration(x)
 	return nil
+}
+
+func (d *Duration) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprintf("%s", time.Duration(*d))), nil
 }
 
 type AccountConfig struct {
@@ -37,6 +42,7 @@ type Config struct {
 	SimpleFormLimit    int                       // Size that a simple form can be (not file uploads)
 	HeaderLimit        int                       // max size of the http header
 	MaxFileTags        int                       // Maximum amount of tags on a single file
+	MaxFileName        int                       // Max length of filename. Files will be rejected if larger than this
 	ResultsPerPage     int                       // Amount of files to show per page
 	RateLimitInterval  Duration                  // span of time for rate limiting
 	RateLimitCount     int                       // Amount of times a user from a single IP can access per interval
@@ -63,6 +69,7 @@ func GetDefaultConfig() Config {
 		HeaderLimit:        100_000,
 		Datapath:           "uploads.db",
 		RateLimitCount:     100,
+		MaxFileName:        256,
 		RateLimitInterval:  Duration(1 * time.Minute),
 		DefaultMinExpire:   Duration(5 * time.Minute),
 		DefaultMaxExpire:   Duration(72 * time.Hour),

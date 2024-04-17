@@ -39,28 +39,48 @@
       flex-direction: row;
       flex-wrap: wrap;
       gap: 0.2em;
+      margin-top: 0.6em;
     }
 
-    .tableform {
+    .liketable {
       display: table;
     }
 
-    .tableform label {
+    .liketable label {
       display: table-row;
     }
 
-    .tableform label>* {
+    .liketable label>* {
       display: table-cell;
     }
 
-    .tableform label span {
+    .liketable label span {
       padding-right: 0.75em;
       text-align: right;
     }
 
-    .tableform label input {
+    .liketable label input {
       width: 100%;
       box-sizing: border-box;
+    }
+
+    .liketable .fileitem {
+      display: table-row;
+    }
+
+    .liketable .fileitem>* {
+      display: table-cell;
+      padding: 0.2em;
+    }
+
+    .liketable .fileitem:nth-child(even) {
+      background-color: rgba(127, 127, 127, 0.1);
+    }
+
+    .fileitem time {
+      color: #777;
+      font-size: 0.8em;
+      font-style: italic;
     }
   </style>
 </head>
@@ -75,7 +95,7 @@
       <input type="submit" value="Set account">
     </form>
     {{else}}
-    <form class="tableform" id="uploadform" enctype='multipart/form-data' action="upload" method="POST">
+    <form class="liketable" id="uploadform" enctype='multipart/form-data' action="upload" method="POST">
       <label>
         <span>File:</span>
         <input type="file" name="files">
@@ -108,7 +128,7 @@
   <!-- File list -->
   <hr>
   {{if len .files}}
-  <div id="filelist">
+  <div id="filelist" class="liketable">
     {{range .files}}
     <div class="fileitem">
       <a href="file/{{.ID}}" class="filename">{{.Name}}</a>

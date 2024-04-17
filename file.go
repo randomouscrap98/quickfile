@@ -152,6 +152,10 @@ func FilePrecheck(meta *FileInsertMeta, config *Config) (string, int64, error) {
 		return "", 0, fmt.Errorf("too many file tags. max: %d", config.MaxFileTags)
 	}
 
+	if len(meta.Filename) > config.MaxFileName {
+		return "", 0, fmt.Errorf("filename too long! max: %d", config.MaxFileName)
+	}
+
 	// Go out to the db and check how many files they have. If they're over, die
 	userStats, err := GetFileStatistics(meta.Account, config)
 	if err != nil {
