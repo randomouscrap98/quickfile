@@ -84,6 +84,12 @@
   <hr>
   <div id="filelist">
   </div>
+  <div id="pagelist">
+    <span>Pages:</span>
+    {{range .pagelist}}
+    <a href="?page={{.}}">{{if eq $.page .}}<b>{{.}}</b>{{else}}{{.}}{{end}}</a>
+    {{end}}
+  </div>
   <hr>
 
   <footer>
