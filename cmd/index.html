@@ -26,6 +26,17 @@
       flex: auto;
     }
 
+    .error {
+      color: darkred;
+    }
+
+    #pagelist {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 0.2em;
+    }
+
     .tableform {
       display: table;
     }
@@ -80,8 +91,18 @@
     {{end}}
   </center>
 
+  <!-- Errors -->
+  {{if len .errors}}
+  <div id="errors">
+    {{range .errors}}
+    <div class="error">{{.}}</div>
+    {{end}}
+  </div>
+  {{end}}
+
   <!-- File list -->
   <hr>
+  {{if len .files}}
   <div id="filelist">
   </div>
   <div id="pagelist">
@@ -90,6 +111,9 @@
     <a href="?page={{.}}">{{if eq $.page .}}<b>{{.}}</b>{{else}}{{.}}{{end}}</a>
     {{end}}
   </div>
+  {{else}}
+  <div>No files yet!</div>
+  {{end}}
   <hr>
 
   <footer>

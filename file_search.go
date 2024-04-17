@@ -117,7 +117,8 @@ func GetFileById(id int64, config *Config) (*UploadFile, error) {
 }
 
 // Return file ids ordered by newest first
-func GetPaginatedFiles(page int, perpage int, config *Config) ([]int64, error) {
+func GetPaginatedFiles(page int, config *Config) ([]int64, error) {
+	perpage := config.ResultsPerPage
 	skip := perpage * page
 	db, err := config.OpenDb()
 	if err != nil {

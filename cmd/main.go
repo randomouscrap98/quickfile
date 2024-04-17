@@ -73,6 +73,7 @@ func initServer(config *quickfile.Config) (chi.Router, *http.Server) {
 // Generate the data used for base template data
 func getBaseTemplateData(config *quickfile.Config, r *http.Request) map[string]any {
 	params := r.URL.Query()
+	errors := make([]string, 0)
 	data := make(map[string]any)
 	data["account"] = ""
 	page, _ := strconv.Atoi(params.Get("page"))
@@ -103,6 +104,24 @@ func getBaseTemplateData(config *quickfile.Config, r *http.Request) map[string]a
 	}
 	data["pagecount"] = pagecount
 	data["pagelist"] = pagelist
+	fids, err := quickfile.GetPaginatedFiles(page, config)
+	if err != nil {
+		log.Printf("WARN: couldn't load paginated ids: %s\n", err)
+		errors = append(errors, "Couldn't load results, pagination error")
+	} else {
+		files := make([]*quickfile.UploadFile, 0, len(fids)) // just in case
+		results, err := quickfile.GetFilesById(fids, config)
+		if err != nil {
+			log.Printf("WARN: couldn't load results from ids: %s\n", err)
+			errors = append(errors, "Couldn't load results, lookup error")
+		} else {
+			for _, id := range fids {
+				files = append(files, results[id])
+			}
+		}
+		data["files"] = files
+	}
+	data["errors"] = errors
 	return data
 }
 
