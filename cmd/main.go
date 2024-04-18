@@ -180,6 +180,16 @@ func parseTags(tags string) []string {
 	return result
 }
 
+func getIndexTemplate(config *quickfile.Config) (*template.Template, error) {
+	return template.New("index.html").Funcs(template.FuncMap{
+		"Bytes":    humanize.Bytes,
+		"BytesI":   func(n int) string { return humanize.Bytes(uint64(n)) },
+		"BytesI64": func(n int64) string { return humanize.Bytes(uint64(n)) },
+		"NiceDate": func(t time.Time) string { return t.UTC().Format(time.RFC3339) },
+		"Until":    func(t time.Time) string { return strings.Trim(humanize.RelTime(t, time.Now(), "in the past", ""), " ") },
+	}).ParseFiles("index.html")
+}
+
 func maintenanceFunc(config *quickfile.Config) {
 	ticker := time.NewTicker(time.Duration(config.MaintenanceInterval))
 	defer ticker.Stop()
@@ -214,12 +224,7 @@ func main() {
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		data := getBaseTemplateData(config, r)
-		tmpl, err := template.New("index.html").Funcs(template.FuncMap{
-			"Bytes":    humanize.Bytes,
-			"BytesI":   func(n int) string { return humanize.Bytes(uint64(n)) },
-			"BytesI64": func(n int64) string { return humanize.Bytes(uint64(n)) },
-			"NiceDate": func(t time.Time) string { return t.UTC().Format(time.RFC3339) },
-		}).ParseFiles("index.html")
+		tmpl, err := getIndexTemplate(config)
 		if err != nil {
 			log.Printf("ERROR: can't load template: %s\n", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -241,7 +246,7 @@ func main() {
 			return
 		}
 		fileinfo, err := quickfile.GetFileById(id, config)
-		if err != nil {
+		if err != nil || fileinfo.IsExpired() {
 			http.Error(w, fmt.Sprintf("Can't find file %d", id), http.StatusNotFound)
 			return
 		}

@@ -34,6 +34,10 @@ type UploadFile struct {
 	Length  int
 }
 
+func (uf *UploadFile) IsExpired() bool {
+	return uf.Expire.Before(time.Now())
+}
+
 type ChunkReader struct {
 	Db        *sql.DB
 	Stmt      *sql.Stmt

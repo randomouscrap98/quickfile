@@ -75,6 +75,7 @@
     .liketable .fileitem>* {
       display: table-cell;
       padding: 0.2em;
+      padding-right: 0.4em;
     }
 
     .liketable .fileitem:nth-child(even) {
@@ -89,6 +90,11 @@
       color: #777;
       font-size: 0.8em;
       font-style: italic;
+    }
+
+    .fileitem .fileexpire {
+      color: darkred;
+      font-size: 0.8em;
     }
   </style>
 </head>
@@ -142,7 +148,8 @@
     <div class="fileitem">
       <a href="file/{{.ID}}" class="filename">{{.Name}}</a>
       <span class="filesize">{{.Length | BytesI}}</span>
-      <time class="filedate" title="Expires on: {{.Expire | NiceDate}}">{{.Date | NiceDate}}</time>
+      <time class="filedate">{{.Date | NiceDate}}</time>
+      <span class="fileexpire" title="Expires on: {{.Expire | NiceDate}}">(Expires {{.Expire | Until}})</span>
     </div>
     {{end}}
   </div>

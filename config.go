@@ -73,7 +73,7 @@ func GetDefaultConfig() Config {
 		Datapath:            "uploads.db",
 		RateLimitCount:      100,
 		MaxFileName:         256,
-		MaintenanceInterval: Duration(1 * time.Minute),
+		MaintenanceInterval: Duration(10 * time.Minute),
 		RateLimitInterval:   Duration(1 * time.Minute),
 		DefaultMinExpire:    Duration(5 * time.Minute),
 		DefaultMaxExpire:    Duration(72 * time.Hour),
