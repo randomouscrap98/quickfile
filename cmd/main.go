@@ -110,8 +110,8 @@ func initServer(config *quickfile.Config) (chi.Router, *http.Server) {
 		Handler:        r,
 		MaxHeaderBytes: config.HeaderLimit,
 	}
-	fmt.Printf("Listening on port %d, db = %s\n", config.Port, config.Datapath)
-	fmt.Printf("Rate limit is %d per %s, timeout = %s\n",
+	log.Printf("Listening on port %d, db = %s\n", config.Port, config.Datapath)
+	log.Printf("Rate limit is %d per %s, timeout = %s\n",
 		config.RateLimitCount, time.Duration(config.RateLimitInterval), time.Duration(config.Timeout))
 	return r, s
 }
@@ -180,9 +180,37 @@ func parseTags(tags string) []string {
 	return result
 }
 
+func maintenanceFunc(config *quickfile.Config) {
+	ticker := time.NewTicker(time.Duration(config.MaintenanceInterval))
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			cleanstats, err := quickfile.CleanupExpired(config)
+			if err != nil {
+				log.Printf("MAINTENANCE CLEANUP ERROR: %s\n", err)
+			} else {
+				log.Printf("Maintenance deleted: %d files, %d tags, %d chunks",
+					cleanstats.DeletedFiles, cleanstats.DeletedTags, cleanstats.DeletedChunks)
+			}
+			vacuumstats, err := quickfile.TryVacuum(config)
+			if err != nil {
+				log.Printf("MAINTENANCE VACUUM ERROR: %s\n", err)
+			} else {
+				if vacuumstats.Vacuumed {
+					log.Printf("Vacuum saved %d bytes\n", vacuumstats.NewSize-vacuumstats.OldSize)
+				}
+			}
+		}
+	}
+}
+
 func main() {
 	config := initConfig()
 	r, s := initServer(config)
+
+	go maintenanceFunc(config)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		data := getBaseTemplateData(config, r)
