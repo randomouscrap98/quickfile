@@ -66,7 +66,7 @@ func GetFilesById(ids []int64, config *Config) (map[int64]*UploadFile, error) {
 	anyIds := sliceToAny(ids)
 
 	// Go get the main data
-	rows, err := db.Query(fmt.Sprintf("SELECT * FROM meta WHERE fid IN (%s)", placeholder), anyIds...)
+	rows, err := db.Query(fmt.Sprintf("SELECT fid,name,account,mime,created,expire,length FROM meta WHERE fid IN (%s)", placeholder), anyIds...)
 	if err != nil {
 		return nil, err
 	}
@@ -131,6 +131,9 @@ func GetPaginatedFiles(page int, config *Config) ([]int64, error) {
 		"SELECT fid FROM meta WHERE (expire IS NULL OR expire > ?) ORDER BY fid DESC LIMIT ? OFFSET ?",
 		time.Now(), perpage, skip,
 	)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 
 	for rows.Next() {
