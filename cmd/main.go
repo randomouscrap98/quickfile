@@ -182,11 +182,12 @@ func parseTags(tags string) []string {
 
 func getIndexTemplate(config *quickfile.Config) (*template.Template, error) {
 	return template.New("index.html").Funcs(template.FuncMap{
-		"Bytes":    humanize.Bytes,
-		"BytesI":   func(n int) string { return humanize.Bytes(uint64(n)) },
-		"BytesI64": func(n int64) string { return humanize.Bytes(uint64(n)) },
-		"NiceDate": func(t time.Time) string { return t.UTC().Format(time.RFC3339) },
-		"Until":    func(t time.Time) string { return strings.Trim(humanize.RelTime(t, time.Now(), "in the past", ""), " ") },
+		"Bytes":      humanize.Bytes,
+		"BytesI":     func(n int) string { return humanize.Bytes(uint64(n)) },
+		"BytesI64":   func(n int64) string { return humanize.Bytes(uint64(n)) },
+		"NiceDate":   func(t time.Time) string { return t.UTC().Format(time.RFC3339) },
+		"Until":      func(t time.Time) string { return strings.Trim(humanize.RelTime(t, time.Now(), "in the past", ""), " ") },
+		"NotTooLong": func(t time.Time) bool { return t.Before(time.Now().AddDate(50, 0, 0)) },
 	}).ParseFiles("index.html")
 }
 
@@ -209,7 +210,7 @@ func maintenanceFunc(config *quickfile.Config) {
 				log.Printf("MAINTENANCE VACUUM ERROR: %s\n", err)
 			} else {
 				if vacuumstats.Vacuumed {
-					log.Printf("Vacuum saved %d bytes\n", vacuumstats.NewSize-vacuumstats.OldSize)
+					log.Printf("Vacuum saved %d bytes\n", vacuumstats.OldSize-vacuumstats.NewSize)
 				}
 			}
 		}
@@ -304,7 +305,7 @@ func main() {
 		}
 		expireRaw := strings.Trim(r.FormValue("expire"), " ")
 		if expireRaw == "" {
-			expireRaw = "1752960h"
+			expireRaw = quickfile.ForeverDuration
 		}
 		expire, err := time.ParseDuration(expireRaw)
 		if err != nil {

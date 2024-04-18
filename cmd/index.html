@@ -121,7 +121,7 @@
       </label>
       <label>
         <span>Expire:</span>
-        <input type="text" name="expire" placeholder="Expire (1y30d4h7m)" value="{{.defaultexpire}}">
+        <input type="text" name="expire" placeholder="Expire (24h7m, empty for permanent)" value="{{.defaultexpire}}">
         <!--<input type="datetime-local" name="expire" placeholder="Expire (1d4h7m)" value="{{.defaultexpire}}">-->
       </label>
       <label>
@@ -150,7 +150,9 @@
       <a href="file/{{.ID}}" class="filename">{{.Name}}</a>
       <span class="filesize">{{.Length | BytesI}}</span>
       <time class="filedate">{{.Date | NiceDate}}</time>
+      {{if NotTooLong .Expire}}
       <span class="fileexpire" title="Expires on: {{.Expire | NiceDate}}">(Expires {{.Expire | Until}})</span>
+      {{end}}
     </div>
     {{end}}
   </div>

@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/pelletier/go-toml/v2"
 )
 
 func uniqueFile(prefix, extension string) string {
@@ -20,11 +22,16 @@ func uniqueFile(prefix, extension string) string {
 const DefaultUser = "testuser"
 
 func createTables(t *testing.T, name string) *Config {
-	config := GetDefaultConfig()
+	config_raw := GetDefaultConfig_Toml()
+	var config Config
+	err := toml.Unmarshal([]byte(config_raw), &config) //GetDefaultConfig()
+	if err != nil {
+		t.Fatalf("Couldn't parse config toml: %s\n", err)
+	}
 	config.Accounts[DefaultUser] = nil
 	config.ApplyDefaults()
 	config.Datapath = uniqueFile(name, ".db")
-	err := CreateTables(&config)
+	err = CreateTables(&config)
 	if err != nil {
 		t.Fatalf("Couldn't create tables: %s\n", err)
 	}

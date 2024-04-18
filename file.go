@@ -7,7 +7,7 @@ import (
 	"log"
 	"mime"
 	"path"
-	"slices"
+	"strings"
 	"sync"
 	"time"
 )
@@ -253,6 +253,15 @@ func TryVacuum(config *Config) (*VacuumStatistics, error) {
 	return result, nil
 }
 
+func anyStartsWith(thing string, things []string) bool {
+	for _, s := range things {
+		if strings.HasPrefix(thing, s) {
+			return true
+		}
+	}
+	return false
+}
+
 // Check file upload for everything we possibly can before actually attempting the upload
 func FilePrecheck(meta *FileInsertMeta, config *Config) (string, int64, error) {
 	// Make sure the account exists
@@ -298,14 +307,25 @@ func FilePrecheck(meta *FileInsertMeta, config *Config) (string, int64, error) {
 	}
 
 	mimeType := mime.TypeByExtension(extension)
+	mimeEnd := strings.Index(mimeType, ";")
+	if mimeEnd >= 0 {
+		mimeType = mimeType[:mimeEnd]
+	}
+	mimeRedirect, ok := config.MimeTypeRedirect[mimeType]
+	if ok {
+		mimeType = mimeRedirect
+	}
 	if mimeType == "" {
 		return "", 0, fmt.Errorf("unknown mimetype")
 	}
 
 	if len(config.AllowedMimeTypes) != 0 {
-		if slices.Index(config.AllowedMimeTypes, mimeType) < 0 {
+		if !anyStartsWith(mimeType, config.AllowedMimeTypes) {
 			return "", 0, fmt.Errorf("mimetype not allowed: %s", mimeType)
 		}
+	}
+	if anyStartsWith(mimeType, config.ForbiddenMimeTypes) {
+		return "", 0, fmt.Errorf("mimetype not allowed: %s", mimeType)
 	}
 
 	return mimeType, acconf.UploadLimit - userStats.TotalSize, nil

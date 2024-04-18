@@ -1,28 +1,33 @@
 package quickfile
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
+	"fmt"
+	"log"
 	"os"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
+const ForeverDuration = "2000000h"
+
 type Duration time.Duration
 
 func (d *Duration) UnmarshalText(b []byte) error {
-	x, err := time.ParseDuration(string(b))
+	bs := string(b)
+	if bs == "never" || bs == "infinite" {
+		bs = ForeverDuration
+	}
+	x, err := time.ParseDuration(bs)
 	if err != nil {
 		return err
 	}
 	*d = Duration(x)
 	return nil
 }
-
-// func (d *Duration) MarshalText() ([]byte, error) {
-// 	log.Printf("YOOO")
-// 	return []byte(fmt.Sprintf("%s", time.Duration(*d))), nil
-// }
 
 type AccountConfig struct {
 	UploadLimit int64
@@ -53,33 +58,63 @@ type Config struct {
 	DefaultMaxExpire    Duration                  // Maximum allowed expiration
 	CacheTime           Duration                  // How long to cache
 	Accounts            map[string]*AccountConfig // The accounts usable
+	MimeTypeRedirect    map[string]string         // Make certain mime types other mime types
 	AllowedMimeTypes    []string                  // If set, only allow mimetypes from this list
+	ForbiddenMimeTypes  []string                  // All mimes in this list are blocked
 }
 
-func GetDefaultConfig() Config {
-	return Config{
-		Accounts:            make(map[string]*AccountConfig),
-		Timeout:             Duration(120 * time.Second),
-		Port:                5007,
-		TotalUploadLimit:    1_000_000_000, // 1gb
-		DefaultUploadLimit:  100_000_000,
-		DefaultFileLimit:    1000,
-		UploadSizeLimit:     100_000_000,
-		MaxFileTags:         10,
-		ResultsPerPage:      100,
-		SimpleFormLimit:     100_000,
-		HeaderLimit:         100_000,
-		VacuumThreshold:     0,
-		Datapath:            "uploads.db",
-		RateLimitCount:      100,
-		MaxFileName:         256,
-		MaintenanceInterval: Duration(10 * time.Minute),
-		RateLimitInterval:   Duration(1 * time.Minute),
-		DefaultMinExpire:    Duration(5 * time.Minute),
-		DefaultMaxExpire:    Duration(72 * time.Hour),
-		DefaultExpire:       Duration(24 * time.Hour),
-		CacheTime:           Duration(365 * 24 * time.Hour),
+func GetDefaultConfig_Toml() string {
+	randomUser := make([]byte, 8)
+	_, err := rand.Read(randomUser)
+	if err != nil {
+		log.Printf("WARN: couldn't generate random user")
 	}
+	randomHex := hex.EncodeToString(randomUser)
+	return fmt.Sprintf(`
+Datapath="uploads.db"   # Where to store the upload database (one file)
+Timeout="2m"            # Timeout for requests (upload/download). Format is like 1h2m3s etc
+Port=5007               # Which port to run the server on
+RateLimitCount=100      # Requests allowed per interval
+RateLimitInterval="1m"  # Requests limiting interval (rate limiting with RateLimitCount)
+CacheTime="8760h"       # The max-age cache time (how long you want the browser to cache files)
+TotalUploadLimit=1_000_000_000  # 1GB, total file database max
+DefaultUploadLimit=100_000_000  # The default upload limit for accounts
+DefaultFileLimit=100            # The default limit of files per user
+DefaultMinExpire="5m"           # The default min expire for files on an account
+DefaultMaxExpire="72h"          # The default max expire for files on an account
+DefaultExpire="24h"             # The default value to put in the expire input on the page
+UploadSizeLimit=100_000_000     # Maximum individual file size
+MaxFileTags=10                  # Maximum tags per file
+MaxFileName=128                 # Max length of filename
+ResultsPerPage=100              # Amount of files to list per page
+SimpleFormLimit=100_000         # Size limit for simple forms (you usually don't need to change this)
+HeaderLimit=100_000             # Size limit for http header (you usually don't need to change this)
+# How much "empty space" to leave before vacuuming. 0 means no vacuuming. This is a delicate
+# balance: vacuuming defragments/compacts the database. When files are deleted or expired,
+# the space is not immediately reclaimed. The space will be reused by new files, so it is
+# not necessary to vacuum, but letting the database go too long without vacuuming can make
+# it run slower. But, vacuuming too often will greatly increase disk writes, and can 
+# legitimately decrease the life of drives, especially when the database is large (gigabytes).
+# For safety, and because it is not required, I turn off vacuuming. When it is set, the 
+# database will vacuum when the "unused space" reaches the limit you set. A good amount
+# might be something like 100_000_000
+VacuumThreshold=0
+MaintenanceInterval="10m"
+
+# Some mime types are either dangerous (html) and some are like... unknown (empty string).
+# If you want other mime redirects, add them
+[MimeTypeRedirect]
+""="application/octet-stream"
+"text/html"="text/plain"
+
+# This is how you define an account: please remove this one! The fields are optional:
+# if not defined, it will use the defaults defined above
+[Accounts.%s]
+# MinExpire="1m"
+# MaxExpire="never"
+# UploadLimit=1_000_000_000
+# FileLimit=10_000
+`, randomHex)
 }
 
 // Apply the defaults to all the accounts so you can directly use the values
