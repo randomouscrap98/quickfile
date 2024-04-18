@@ -66,7 +66,7 @@ func initConfig(allowRecreate bool) *quickfile.Config {
 
 // Retrieve the user account. Returns the name, the config, and whether it's valid
 func getAccount(config *quickfile.Config, r *http.Request) (string, *quickfile.AccountConfig, bool) {
-	account, err := r.Cookie("account")
+	account, err := r.Cookie(config.CookieName)
 	if err == nil {
 		acconf, ok := config.Accounts[account.Value]
 		if ok {
@@ -314,7 +314,7 @@ func main() {
 		_, ok := config.Accounts[account]
 		if ok {
 			http.SetCookie(w, &http.Cookie{
-				Name:  "account",
+				Name:  config.CookieName,
 				Value: account,
 			})
 		} else {

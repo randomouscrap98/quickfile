@@ -39,6 +39,7 @@ type AccountConfig struct {
 type Config struct {
 	Timeout             Duration
 	Datapath            string                    // Place to put the files
+	CookieName   string // Name of authentication cookie
 	Port                int                       // The port obviously
 	TotalUploadLimit    int64                     // Max size for the totality of file uploads (not size of db!!)
 	DefaultUploadLimit  int64                     // Size in bytes of account upload
@@ -77,6 +78,7 @@ Port=5007               # Which port to run the server on
 RateLimitCount=100      # Requests allowed per interval
 RateLimitInterval="1m"  # Requests limiting interval (rate limiting with RateLimitCount)
 CacheTime="8760h"       # The max-age cache time (how long you want the browser to cache files)
+CookieName="quickile_account"   # The name of the cookie
 TotalUploadLimit=1_000_000_000  # 1GB, total file database max
 DefaultUploadLimit=100_000_000  # The default upload limit for accounts
 DefaultFileLimit=100            # The default limit of files per user
