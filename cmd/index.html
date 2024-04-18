@@ -129,7 +129,7 @@
     <!-- Login or file upload form -->
     {{if not .loggedin}}
     <form action="setuser" method="POST">
-      <input type="text" placeholder="Account" name="account">
+      <input type="password" placeholder="Account" name="account">
       <input type="submit" value="Set account">
     </form>
     {{else}}
@@ -229,7 +229,8 @@
     <span id="servertime">Server time: {{.time | NiceDate}}</span>
     <span id="statistics">{{.statistics.Count}} files | {{.statistics.TotalSize | BytesI64}}</span>
     <span class="spacer"></span>
-    <span id="credits">v{{.appversion}} <a href="https://github.com/randomouscrap98/quickfile">haloopdy - 2024</a></span>
+    <span id="credits">v{{.appversion}} <a href="https://github.com/randomouscrap98/quickfile">haloopdy -
+        2024</a></span>
   </footer>
 
 </body>
