@@ -6,9 +6,9 @@ import (
 	"io"
 	"log"
 	"math"
-	"path"
 	"net/http"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -169,9 +169,13 @@ func parseTags(tags string) []string {
 	return result
 }
 
-func getFileLink(f *quickfile.UploadFile) string {
+func getFileLinkName(f *quickfile.UploadFile) string {
 	name, ext := path.Split(f.Name)
-	return fmt.Sprintf("file/%d_%s%s", f.ID, slug.Make(name), ext)
+	return fmt.Sprintf("%s%s", slug.Make(name), ext)
+}
+
+func getFileLink(f *quickfile.UploadFile) string {
+	return fmt.Sprintf("file/%d/%s", f.ID, getFileLinkName(f))
 }
 
 func getIndexTemplate(_ *quickfile.Config) (*template.Template, error) {
@@ -235,16 +239,21 @@ func main() {
 		}
 	})
 
-	r.Get("/file/{id}", func(w http.ResponseWriter, r *http.Request) {
-		idraw := quickfile.StringUpTo("_", chi.URLParam(r, "id"))
+	r.Get("/file/{id}/{name}", func(w http.ResponseWriter, r *http.Request) {
+		idraw := chi.URLParam(r, "id")
 		id, err := strconv.ParseInt(idraw, 10, 64)
 		if err != nil {
 			http.Error(w, "Bad file ID format", http.StatusBadRequest)
 			return
 		}
+		name := chi.URLParam(r, "name")
 		fileinfo, err := quickfile.GetFileById(id, config)
 		if err != nil || fileinfo.IsExpired() {
 			http.Error(w, fmt.Sprintf("Can't find file %d", id), http.StatusNotFound)
+			return
+		}
+		if name != getFileLinkName(fileinfo) {
+			http.Error(w, fmt.Sprintf("Can't find file %d (bad name?)", id), http.StatusNotFound)
 			return
 		}
 		reader, err := quickfile.OpenChunkReader(id, config)

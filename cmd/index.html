@@ -57,7 +57,8 @@
     }
 
     #accountinfo table,
-    #accountinfo td {
+    #accountinfo td,
+    #accountinfo th {
       border: 1px solid black;
       border-collapse: collapse;
     }
@@ -211,14 +212,19 @@
     <summary>Account info</summary>
     <table>
       <tr>
-        <td>Quota:</td>
-        <td>{{.acconf.UploadLimit | BytesI64}}</td>
-        <td>({{.userstatistics.TotalSize | BytesI64}} used)</td>
+        <th></th>
+        <th>Used</th>
+        <th>Quota</th>
       </tr>
       <tr>
-        <td>File limit:</td>
+        <td>Space</td>
+        <td>{{.userstatistics.TotalSize | BytesI64}}</td>
+        <td>{{.acconf.UploadLimit | BytesI64}}</td>
+      </tr>
+      <tr>
+        <td>File Count</td>
+        <td>{{.userstatistics.Count}}</td>
         <td>{{.acconf.FileLimit}}</td>
-        <td>({{.userstatistics.Count}} uploaded)</td>
       </tr>
     </table>
   </details>
