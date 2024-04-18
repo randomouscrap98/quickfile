@@ -131,6 +131,9 @@ func GetPaginatedFiles(page int, config *Config) ([]int64, error) {
 		"SELECT fid FROM meta WHERE (expire IS NULL OR expire > ?) ORDER BY fid DESC LIMIT ? OFFSET ?",
 		time.Now(), perpage, skip,
 	)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 
 	for rows.Next() {

@@ -10,7 +10,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/randomouscrap98/quickfile"
@@ -25,10 +24,7 @@ import (
 
 const (
 	ConfigFile = "config.toml"
-)
-
-var (
-	mutex sync.Mutex
+	AppVersion = "0.1"
 )
 
 func must(err error) {
@@ -62,6 +58,7 @@ func initConfig(allowRecreate bool) *quickfile.Config {
 	// Get all the defaults propogated
 	config.ApplyDefaults()
 	must(quickfile.CreateTables(&config))
+	must(quickfile.VerifyDatabase(&config))
 	return &config
 }
 
@@ -100,6 +97,7 @@ func getBaseTemplateData(config *quickfile.Config, r *http.Request) map[string]a
 	params := r.URL.Query()
 	errors := make([]string, 0)
 	data := make(map[string]any)
+	data["appversion"] = AppVersion
 	data["account"] = ""
 	page, _ := strconv.Atoi(params.Get("page"))
 	if page < 1 {
@@ -159,7 +157,7 @@ func parseTags(tags string) []string {
 	return result
 }
 
-func getIndexTemplate(config *quickfile.Config) (*template.Template, error) {
+func getIndexTemplate(_ *quickfile.Config) (*template.Template, error) {
 	return template.New("index.html").Funcs(template.FuncMap{
 		"Bytes":      humanize.Bytes,
 		"BytesI":     func(n int) string { return humanize.Bytes(uint64(n)) },
@@ -197,6 +195,7 @@ func maintenanceFunc(config *quickfile.Config) {
 }
 
 func main() {
+	log.Printf("Quickfile server version %s\n", AppVersion)
 	config := initConfig(true)
 	r, s := initServer(config)
 

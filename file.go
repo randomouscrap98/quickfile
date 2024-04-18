@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	ChunkSize = 65536
+	ChunkSize       = 65536
+	DatabaseVersion = "1"
 )
 
 type FileInsertMeta struct {
@@ -116,7 +117,8 @@ func CreateTables(config *Config) error {
       mime TEXT NOT NULL,
       created DATETIME NOT NULL,
       expire DATETIME,
-      length INT NOT NULL
+      length INT NOT NULL,
+	  compression TEXT
     );`,
 		`CREATE TABLE IF NOT EXISTS tags (
       tid INTEGER PRIMARY KEY,
@@ -129,6 +131,10 @@ func CreateTables(config *Config) error {
       length INTEGER NOT NULL,
       data BLOB NOT NULL
     );`,
+		`CREATE TABLE IF NOT EXISTS sysvalues (
+	  "key" TEXT PRIMARY KEY,
+	  value TEXT
+	);`,
 		`CREATE INDEX IF NOT EXISTS idx_meta_account_expire ON meta (account,expire)`,
 		`CREATE INDEX IF NOT EXISTS idx_meta_expire ON meta (expire)`,
 		`CREATE INDEX IF NOT EXISTS idx_tags_fid ON tags (fid)`,
@@ -143,6 +149,28 @@ func CreateTables(config *Config) error {
 		}
 	}
 
+	_, err = db.Exec("INSERT OR IGNORE INTO sysvalues VALUES(?,?)", "version", DatabaseVersion)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func VerifyDatabase(config *Config) error {
+	db, err := config.OpenDb()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	var dbVersion string
+	err = db.QueryRow("SELECT value FROM sysvalues WHERE \"key\" = ?", "version").Scan(&dbVersion)
+	if err != nil {
+		return err
+	}
+	if dbVersion != DatabaseVersion {
+		return fmt.Errorf("incompatible database version: expected %s, got %s", DatabaseVersion, dbVersion)
+	}
 	return nil
 }
 
