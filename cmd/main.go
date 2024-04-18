@@ -37,12 +37,23 @@ func must(err error) {
 	}
 }
 
-func initConfig() *quickfile.Config {
-	config := quickfile.GetDefaultConfig()
+func initConfig(allowRecreate bool) *quickfile.Config {
+	var config quickfile.Config
 	// Read the config. It's OK if it doesn't exist
 	configData, err := os.ReadFile(ConfigFile)
 	if err != nil {
-		log.Printf("WARN: Couldn't read config file %s: %s", ConfigFile, err)
+		if allowRecreate {
+			configRaw := quickfile.GetDefaultConfig_Toml()
+			err = os.WriteFile(ConfigFile, []byte(configRaw), 0600)
+			if err != nil {
+				log.Printf("ERROR: Couldn't write default config: %s\n", err)
+			} else {
+				log.Printf("Generated default config at %s\n", ConfigFile)
+				return initConfig(false)
+			}
+		} else {
+			log.Fatalf("WARN: Couldn't read config file %s: %s", ConfigFile, err)
+		}
 	} else {
 		// If the config exists, it MUST be parsable.
 		err = toml.Unmarshal(configData, &config)
@@ -53,38 +64,6 @@ func initConfig() *quickfile.Config {
 	must(quickfile.CreateTables(&config))
 	return &config
 }
-
-// func initConfig(allowRecreate bool) *quickfile.Config {
-// 	config := quickfile.GetDefaultConfig()
-// 	// Read the config. It's OK if it doesn't exist
-// 	configData, err := os.ReadFile(ConfigFile)
-// 	if err != nil {
-// 		if allowRecreate {
-// 			result, err := toml.Marshal(config)
-// 			if err != nil {
-// 				log.Printf("ERROR: Couldn't marshal config! This is weird: %s\n", err)
-// 			} else {
-// 				result = append(result, []byte("\n\n# Add accounts with special overrides\n# [Accounts.SecretObscureName]")...)
-// 				err = os.WriteFile(ConfigFile, result, 0600)
-// 				if err != nil {
-// 					log.Printf("ERROR: Couldn't write default config: %s\n", err)
-// 				} else {
-// 					return initConfig(false)
-// 				}
-// 			}
-// 		} else {
-// 			log.Printf("WARN: Couldn't read config file %s: %s", ConfigFile, err)
-// 		}
-// 	} else {
-// 		// If the config exists, it MUST be parsable.
-// 		err = toml.Unmarshal(configData, &config)
-// 		must(err)
-// 	}
-// 	// Get all the defaults propogated
-// 	config.ApplyDefaults()
-// 	must(quickfile.CreateTables(&config))
-// 	return &config
-// }
 
 // Retrieve the user account. Returns the name, the config, and whether it's valid
 func getAccount(config *quickfile.Config, r *http.Request) (string, *quickfile.AccountConfig, bool) {
@@ -218,7 +197,7 @@ func maintenanceFunc(config *quickfile.Config) {
 }
 
 func main() {
-	config := initConfig()
+	config := initConfig(true)
 	r, s := initServer(config)
 
 	go maintenanceFunc(config)

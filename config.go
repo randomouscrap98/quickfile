@@ -64,13 +64,13 @@ type Config struct {
 }
 
 func GetDefaultConfig_Toml() string {
-	randomUser := make([]byte, 8)
+	randomUser := make([]byte, 16)
 	_, err := rand.Read(randomUser)
 	if err != nil {
 		log.Printf("WARN: couldn't generate random user")
 	}
 	randomHex := hex.EncodeToString(randomUser)
-	return fmt.Sprintf(`
+	return fmt.Sprintf(`# Config auto-generated on %s
 Datapath="uploads.db"   # Where to store the upload database (one file)
 Timeout="2m"            # Timeout for requests (upload/download). Format is like 1h2m3s etc
 Port=5007               # Which port to run the server on
@@ -107,14 +107,14 @@ MaintenanceInterval="10m"
 ""="application/octet-stream"
 "text/html"="text/plain"
 
-# This is how you define an account: please remove this one! The fields are optional:
+# This is how you define an account. The fields are optional:
 # if not defined, it will use the defaults defined above
 [Accounts.%s]
 # MinExpire="1m"
 # MaxExpire="never"
 # UploadLimit=1_000_000_000
 # FileLimit=10_000
-`, randomHex)
+`, time.Now().Format(time.RFC3339), randomHex)
 }
 
 // Apply the defaults to all the accounts so you can directly use the values
