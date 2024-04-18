@@ -302,7 +302,11 @@ func main() {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		expire, err := time.ParseDuration(r.FormValue("expire"))
+		expireRaw := strings.Trim(r.FormValue("expire"), " ")
+		if expireRaw == "" {
+			expireRaw = "1752960h"
+		}
+		expire, err := time.ParseDuration(expireRaw)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Couldn't parse expire: %s", err), http.StatusBadRequest)
 			return
