@@ -32,49 +32,53 @@ type AccountConfig struct {
 }
 
 type Config struct {
-	Timeout            Duration
-	Datapath           string                    // Place to put the files
-	Port               int                       // The port obviously
-	TotalUploadLimit   int64                     // Max size for the totality of file uploads (not size of db!!)
-	DefaultUploadLimit int64                     // Size in bytes of account upload
-	DefaultFileLimit   int                       // Default Amount of files per account
-	UploadSizeLimit    int                       // Individual file upload limit
-	SimpleFormLimit    int                       // Size that a simple form can be (not file uploads)
-	HeaderLimit        int                       // max size of the http header
-	MaxFileTags        int                       // Maximum amount of tags on a single file
-	MaxFileName        int                       // Max length of filename. Files will be rejected if larger than this
-	ResultsPerPage     int                       // Amount of files to show per page
-	RateLimitInterval  Duration                  // span of time for rate limiting
-	RateLimitCount     int                       // Amount of times a user from a single IP can access per interval
-	DefaultMinExpire   Duration                  // Min expire measured in minutes
-	DefaultExpire      Duration                  // Default expiration value if none is set
-	DefaultMaxExpire   Duration                  // Maximum allowed expiration
-	CacheTime          Duration                  // How long to cache
-	Accounts           map[string]*AccountConfig // The accounts usable
-	AllowedMimeTypes   []string                  // If set, only allow mimetypes from this list
+	Timeout             Duration
+	Datapath            string                    // Place to put the files
+	Port                int                       // The port obviously
+	TotalUploadLimit    int64                     // Max size for the totality of file uploads (not size of db!!)
+	DefaultUploadLimit  int64                     // Size in bytes of account upload
+	DefaultFileLimit    int                       // Default Amount of files per account
+	UploadSizeLimit     int                       // Individual file upload limit
+	SimpleFormLimit     int                       // Size that a simple form can be (not file uploads)
+	HeaderLimit         int                       // max size of the http header
+	MaxFileTags         int                       // Maximum amount of tags on a single file
+	MaxFileName         int                       // Max length of filename. Files will be rejected if larger than this
+	ResultsPerPage      int                       // Amount of files to show per page
+	VacuumThreshold     int64                     // Amount of bytes required before vacuum. Set to 0 to disable
+	MaintenanceInterval Duration                  // Interval between maintenance cycles (should be less than the min expire)
+	RateLimitInterval   Duration                  // span of time for rate limiting
+	RateLimitCount      int                       // Amount of times a user from a single IP can access per interval
+	DefaultMinExpire    Duration                  // Min expire measured in minutes
+	DefaultExpire       Duration                  // Default expiration value if none is set
+	DefaultMaxExpire    Duration                  // Maximum allowed expiration
+	CacheTime           Duration                  // How long to cache
+	Accounts            map[string]*AccountConfig // The accounts usable
+	AllowedMimeTypes    []string                  // If set, only allow mimetypes from this list
 }
 
 func GetDefaultConfig() Config {
 	return Config{
-		Accounts:           make(map[string]*AccountConfig),
-		Timeout:            Duration(120 * time.Second),
-		Port:               5007,
-		TotalUploadLimit:   1_000_000_000, // 1gb
-		DefaultUploadLimit: 100_000_000,
-		DefaultFileLimit:   1000,
-		UploadSizeLimit:    100_000_000,
-		MaxFileTags:        10,
-		ResultsPerPage:     100,
-		SimpleFormLimit:    100_000,
-		HeaderLimit:        100_000,
-		Datapath:           "uploads.db",
-		RateLimitCount:     100,
-		MaxFileName:        256,
-		RateLimitInterval:  Duration(1 * time.Minute),
-		DefaultMinExpire:   Duration(5 * time.Minute),
-		DefaultMaxExpire:   Duration(72 * time.Hour),
-		DefaultExpire:      Duration(24 * time.Hour),
-		CacheTime:          Duration(365 * 24 * time.Hour),
+		Accounts:            make(map[string]*AccountConfig),
+		Timeout:             Duration(120 * time.Second),
+		Port:                5007,
+		TotalUploadLimit:    1_000_000_000, // 1gb
+		DefaultUploadLimit:  100_000_000,
+		DefaultFileLimit:    1000,
+		UploadSizeLimit:     100_000_000,
+		MaxFileTags:         10,
+		ResultsPerPage:      100,
+		SimpleFormLimit:     100_000,
+		HeaderLimit:         100_000,
+		VacuumThreshold:     0,
+		Datapath:            "uploads.db",
+		RateLimitCount:      100,
+		MaxFileName:         256,
+		MaintenanceInterval: Duration(1 * time.Minute),
+		RateLimitInterval:   Duration(1 * time.Minute),
+		DefaultMinExpire:    Duration(5 * time.Minute),
+		DefaultMaxExpire:    Duration(72 * time.Hour),
+		DefaultExpire:       Duration(24 * time.Hour),
+		CacheTime:           Duration(365 * 24 * time.Hour),
 	}
 }
 

@@ -51,6 +51,12 @@ func workingMeta() FileInsertMeta {
 	}
 }
 
+func randomizeArray(arr []byte) {
+	for i := 0; i < len(arr); i++ {
+		arr[i] = byte(rand.Intn(256)) //i & 0xFF)
+	}
+}
+
 func TestVariousPrechecks(t *testing.T) {
 	config := createTables(t, "prechecks")
 	meta := workingMeta()
@@ -136,9 +142,7 @@ func TestLive(t *testing.T) {
 	lengths := []int{ChunkSize, ChunkSize * 2, ChunkSize*2 + 69}
 	for _, l := range lengths {
 		expectedData = make([]byte, l)
-		for i := 0; i < len(expectedData); i++ {
-			expectedData[i] = byte(rand.Intn(256)) //i & 0xFF)
-		}
+		randomizeArray(expectedData)
 		meta.Filename = fmt.Sprintf("file_%d.zip", l)
 		meta.Tags = append(meta.Tags, fmt.Sprintf("extra:%d", l))
 		file = bytes.NewBuffer(expectedData)
@@ -169,5 +173,112 @@ func TestLive(t *testing.T) {
 			t.Fatalf("Reader produced different data for %s\n", meta.Filename)
 		}
 		log.Printf("Passed: %s\n", meta.Filename)
+	}
+}
+
+func TestCleanup(t *testing.T) {
+
+	const NUMCHUNKS = 100
+
+	config := createTables(t, "cleanup")
+	meta := workingMeta()
+	config.Accounts[meta.Account].MinExpire = Duration(0)
+	expectedData := make([]byte, ChunkSize*NUMCHUNKS)
+
+	var err error
+
+	// Insert a couple big ones
+	randomizeArray(expectedData)
+	meta.Filename = fmt.Sprintf("file_0.zip")
+	meta.Expire = 0
+	file0 := bytes.NewBuffer(expectedData)
+	_, err = InsertFile(&meta, file0, config)
+	if err != nil {
+		t.Fatalf("Couldn't insert file 0: %s\n", err)
+	}
+
+	randomizeArray(expectedData)
+	meta.Filename = fmt.Sprintf("file_1.zip")
+	meta.Expire = 5 * time.Minute
+	file1 := bytes.NewBuffer(expectedData)
+	result1, err := InsertFile(&meta, file1, config)
+	if err != nil {
+		t.Fatalf("Couldn't insert file 1: %s\n", err)
+	}
+
+	// Ensure only the one is there
+	fids, err := GetPaginatedFiles(0, config)
+	if err != nil {
+		t.Fatalf("Couldn't get file ids: %s\n", err)
+	}
+	if len(fids) != 1 {
+		t.Fatalf("Expected 1 files after insert, got %d\n", len(fids))
+	}
+
+	files, err := GetFilesById(fids, config)
+	if err != nil {
+		t.Fatalf("Couldn't get files: %s\n", err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("Expected 1 files after insert, got %d\n", len(files))
+	}
+
+	for _, f := range files {
+		if f.Length != len(expectedData) {
+			t.Fatalf("File %s not right length: %d vs %d\n", f.Name, f.Length, len(expectedData))
+		}
+	}
+
+	// Delete expired (only the second one)
+	stats, err := CleanupExpired(config)
+	if err != nil {
+		t.Fatalf("Couldn't cleanup: %s\n", err)
+	}
+
+	if stats.DeletedFiles != 1 {
+		t.Fatalf("Expected 1 deleted file, got %d\n", stats.DeletedFiles)
+	}
+	if stats.DeletedTags != int64(len(meta.Tags)) {
+		t.Fatalf("Expected %d deleted tags, got %d\n", len(meta.Tags), stats.DeletedTags)
+	}
+	if stats.DeletedChunks != NUMCHUNKS {
+		t.Fatalf("Expected %d deleted chunks, got %d\n", NUMCHUNKS, stats.DeletedChunks)
+	}
+
+	fids, err = GetPaginatedFiles(0, config)
+	if err != nil {
+		t.Fatalf("Couldn't get file ids: %s\n", err)
+	}
+	if len(fids) != 1 {
+		t.Fatalf("Expected 1 file after expire, got %d\n", len(fids))
+	}
+	if fids[0] != result1.ID {
+		t.Fatalf("Expected only file after expire to be %d, got %d\n", result1.ID, len(fids))
+	}
+
+	// Vacuum without threshold (no vacuum)
+	config.VacuumThreshold = 0
+	vstats, err := TryVacuum(config)
+	if err != nil {
+		t.Fatalf("Couldn't vacuum none: %s\n", err)
+	}
+	if vstats.Vacuumed {
+		t.Fatalf("Wasn't supposed to vacuum!\n")
+	}
+
+	// Vacuum with threshold (WAY lower than the amount we deleted)
+	config.VacuumThreshold = ChunkSize
+	vstats, err = TryVacuum(config)
+	if err != nil {
+		t.Fatalf("Couldn't vacuum real: %s\n", err)
+	}
+	if !vstats.Vacuumed {
+		t.Fatalf("Was supposed to vacuum!\n")
+	}
+	if vstats.OldSize < ChunkSize*NUMCHUNKS*2 {
+		t.Fatalf("Bad old size calc: %d vs %d\n", vstats.OldSize, ChunkSize*NUMCHUNKS*2)
+	}
+	if vstats.NewSize > ChunkSize*NUMCHUNKS*2 || vstats.NewSize < ChunkSize*NUMCHUNKS {
+		t.Fatalf("Bad new size calc: %d\n", vstats.NewSize)
 	}
 }

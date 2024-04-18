@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"log"
 	"mime"
 	"path"
 	"slices"
+	"sync"
 	"time"
 )
 
@@ -138,6 +140,113 @@ func CreateTables(config *Config) error {
 	}
 
 	return nil
+}
+
+// Statistics on the cleanup
+type CleanupStatistics struct {
+	DeletedFiles  int64
+	DeletedChunks int64
+	DeletedTags   int64
+}
+
+var cleanupMutex sync.Mutex
+
+// Remove expired images
+func CleanupExpired(config *Config) (*CleanupStatistics, error) {
+	cleanupMutex.Lock()
+	defer cleanupMutex.Unlock()
+
+	var cleanStats CleanupStatistics
+
+	db, err := config.OpenDb()
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	// Delete metadata immediately, this will make images inaccessible on the website
+	// even if the chunks are left
+	result, err := db.Exec("DELETE FROM meta WHERE expire IS NOT NULL and expire <= ?", time.Now())
+	if err != nil {
+		return nil, err
+	}
+	cleanStats.DeletedFiles, err = result.RowsAffected()
+	if err != nil {
+		log.Printf("WARN: Couldn't get number of deleted files: %s\n", err)
+	}
+
+	// Chunks go next, they're big
+	result, err = db.Exec("DELETE FROM chunks WHERE fid NOT IN (select fid from meta)")
+	if err != nil {
+		return nil, err
+	}
+	cleanStats.DeletedChunks, err = result.RowsAffected()
+	if err != nil {
+		log.Printf("WARN: Couldn't get number of deleted chunks: %s\n", err)
+	}
+
+	// who cares about tags
+	result, err = db.Exec("DELETE FROM tags WHERE fid NOT IN (select fid from meta)")
+	if err != nil {
+		return nil, err
+	}
+	cleanStats.DeletedTags, err = result.RowsAffected()
+	if err != nil {
+		log.Printf("WARN: Couldn't get number of deleted tags: %s\n", err)
+	}
+
+	return &cleanStats, nil
+}
+
+type VacuumStatistics struct {
+	Vacuumed      bool
+	OldStatistics *FileStatistics
+	OldSize       int64
+	NewSize       int64
+}
+
+// Attempt to vacuum the database (if it's necessary)
+func TryVacuum(config *Config) (*VacuumStatistics, error) {
+	cleanupMutex.Lock()
+	defer cleanupMutex.Unlock()
+
+	var err error
+	result := &VacuumStatistics{}
+
+	// Don't vacuum if not set
+	if config.VacuumThreshold <= 0 {
+		return result, nil
+	}
+
+	result.OldSize, err = config.DbSize()
+	if err != nil {
+		return nil, err
+	}
+
+	result.OldStatistics, err = GetFileStatistics("", config)
+	if err != nil {
+		return nil, err
+	}
+
+	if result.OldSize-result.OldStatistics.TotalSize > config.VacuumThreshold {
+		db, err := config.OpenDb()
+		if err != nil {
+			return nil, err
+		}
+		defer db.Close()
+
+		result.Vacuumed = true
+		_, err = db.Exec("VACUUM")
+		if err != nil {
+			return nil, err
+		}
+		result.NewSize, err = config.DbSize()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
 }
 
 // Check file upload for everything we possibly can before actually attempting the upload
