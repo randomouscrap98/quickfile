@@ -15,6 +15,7 @@ uploads
 uploads.db
 ignore
 config.toml
+publish.sh
 
 
 # Test binary, built with `go test -c`

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"path"
 	"net/http"
 	"os"
 	"strconv"
@@ -169,7 +170,8 @@ func parseTags(tags string) []string {
 }
 
 func getFileLink(f *quickfile.UploadFile) string {
-	return fmt.Sprintf("file/%d_%s", f.ID, slug.Make(f.Name))
+	name, ext := path.Split(f.Name)
+	return fmt.Sprintf("file/%d_%s%s", f.ID, slug.Make(name), ext)
 }
 
 func getIndexTemplate(_ *quickfile.Config) (*template.Template, error) {
