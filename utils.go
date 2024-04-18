@@ -42,3 +42,20 @@ func sliceDistinct[T comparable](slice []T) []T {
 	}
 	return result
 }
+
+func StringUpTo(delim, base string) string {
+	end := strings.Index(base, delim)
+	if end >= 0 {
+		return base[:end]
+	}
+	return base
+}
+
+func anyStartsWith(thing string, things []string) bool {
+	for _, s := range things {
+		if strings.HasPrefix(thing, s) {
+			return true
+		}
+	}
+	return false
+}

@@ -7,7 +7,6 @@ import (
 	"log"
 	"mime"
 	"path"
-	"strings"
 	"sync"
 	"time"
 )
@@ -253,13 +252,25 @@ func TryVacuum(config *Config) (*VacuumStatistics, error) {
 	return result, nil
 }
 
-func anyStartsWith(thing string, things []string) bool {
-	for _, s := range things {
-		if strings.HasPrefix(thing, s) {
-			return true
-		}
+// Immediately expire the file
+func ExpireFile(id int64, config *Config) error {
+	db, err := config.OpenDb()
+	if err != nil {
+		return err
 	}
-	return false
+	defer db.Close()
+	info, err := db.Exec("UPDATE meta SET expire=created WHERE fid = ?", id)
+	if err != nil {
+		return err
+	}
+	rows, err := info.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("not found: %d", id)
+	}
+	return nil
 }
 
 // Check file upload for everything we possibly can before actually attempting the upload
@@ -306,11 +317,7 @@ func FilePrecheck(meta *FileInsertMeta, config *Config) (string, int64, error) {
 		return "", 0, fmt.Errorf("filename must have extension")
 	}
 
-	mimeType := mime.TypeByExtension(extension)
-	mimeEnd := strings.Index(mimeType, ";")
-	if mimeEnd >= 0 {
-		mimeType = mimeType[:mimeEnd]
-	}
+	mimeType := StringUpTo(";", mime.TypeByExtension(extension))
 	mimeRedirect, ok := config.MimeTypeRedirect[mimeType]
 	if ok {
 		mimeType = mimeRedirect

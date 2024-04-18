@@ -20,6 +20,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httprate"
+	"github.com/gosimple/slug"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -101,6 +102,7 @@ func getBaseTemplateData(config *quickfile.Config, r *http.Request) map[string]a
 	errors := make([]string, 0)
 	data := make(map[string]any)
 	data["account"] = ""
+	data["loggedin"] = false
 	page, _ := strconv.Atoi(params.Get("page"))
 	if page < 1 {
 		page = 1
@@ -108,9 +110,18 @@ func getBaseTemplateData(config *quickfile.Config, r *http.Request) map[string]a
 	data["page"] = page
 	data["time"] = time.Now()
 	data["defaultexpire"] = time.Duration(config.DefaultExpire)
-	account, _, ok := getAccount(config, r)
+	account, acconf, ok := getAccount(config, r)
 	if ok {
 		data["account"] = account
+		data["loggedin"] = true
+		data["acconf"] = acconf
+		userstatistics, err := quickfile.GetFileStatistics(account, config)
+		if err != nil {
+			log.Printf("WARN: couldn't get user statistics: %s\n", err)
+			data["statistics"] = &quickfile.FileStatistics{}
+		} else {
+			data["userstatistics"] = userstatistics
+		}
 	}
 	statistics, err := quickfile.GetFileStatistics("", config)
 	if err != nil {
@@ -159,6 +170,10 @@ func parseTags(tags string) []string {
 	return result
 }
 
+func getFileLink(f *quickfile.UploadFile) string {
+	return fmt.Sprintf("file/%d_%s", f.ID, slug.Make(f.Name))
+}
+
 func getIndexTemplate(config *quickfile.Config) (*template.Template, error) {
 	return template.New("index.html").Funcs(template.FuncMap{
 		"Bytes":      humanize.Bytes,
@@ -167,6 +182,7 @@ func getIndexTemplate(config *quickfile.Config) (*template.Template, error) {
 		"NiceDate":   func(t time.Time) string { return t.UTC().Format(time.RFC3339) },
 		"Until":      func(t time.Time) string { return strings.Trim(humanize.RelTime(t, time.Now(), "in the past", ""), " ") },
 		"NotTooLong": func(t time.Time) bool { return t.Before(time.Now().AddDate(50, 0, 0)) },
+		"FileLink":   getFileLink,
 	}).ParseFiles("index.html")
 }
 
@@ -219,7 +235,7 @@ func main() {
 	})
 
 	r.Get("/file/{id}", func(w http.ResponseWriter, r *http.Request) {
-		idraw := chi.URLParam(r, "id")
+		idraw := quickfile.StringUpTo("_", chi.URLParam(r, "id"))
 		id, err := strconv.ParseInt(idraw, 10, 64)
 		if err != nil {
 			http.Error(w, "Bad file ID format", http.StatusBadRequest)
@@ -241,6 +257,40 @@ func main() {
 		w.Header().Set("Content-Length", fmt.Sprint(fileinfo.Length))
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d", int64(time.Duration(config.CacheTime).Seconds())))
 		io.Copy(w, reader)
+	})
+
+	r.Post("/delete/{id}", func(w http.ResponseWriter, r *http.Request) {
+		idraw := quickfile.StringUpTo("_", chi.URLParam(r, "id"))
+		id, err := strconv.ParseInt(idraw, 10, 64)
+		if err != nil {
+			http.Error(w, "Bad file ID format", http.StatusBadRequest)
+			return
+		}
+		user, _, exists := getAccount(config, r)
+		if !exists {
+			log.Printf("Delete attempt without an account\n")
+			http.Error(w, "Invalid account", http.StatusUnauthorized)
+			return
+		}
+		file, err := quickfile.GetFileById(id, config)
+		if err != nil {
+			log.Printf("Delete file lookup error: %s\n", err)
+			http.Error(w, "File lookup error", http.StatusNotFound)
+			return
+		}
+		if file.Account != user {
+			log.Printf("Delete attempt account mismatch: %s deleting %s\n", user, file.Account)
+			http.Error(w, "Invalid account", http.StatusUnauthorized)
+			return
+		}
+		// Yes, it is known that you can repeatedly "delete" a file while it still
+		// exists on the server. I don't think it's an issue
+		err = quickfile.ExpireFile(id, config)
+		if err != nil {
+			log.Printf("Delete error on %d: %s\n", id, err)
+			http.Error(w, "Error on delete", http.StatusBadRequest)
+		}
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 	})
 
 	r.Post("/setuser", func(w http.ResponseWriter, r *http.Request) {
@@ -294,6 +344,7 @@ func main() {
 		tags := parseTags(r.FormValue("tags"))
 		// We support multi-file upload, but every file gets the same expire and tags
 		files := r.MultipartForm.File["files"]
+		fileLinks := make([]string, 0, len(files))
 		// Iterate over each file
 		for _, fileHeader := range files {
 			file, err := fileHeader.Open()
@@ -316,6 +367,7 @@ func main() {
 				return
 			} else {
 				log.Printf("User %s uploaded file %s (ID: %d, %s)\n", upload.Account, upload.Name, upload.ID, humanize.Bytes(uint64(upload.Length)))
+				fileLinks = append(fileLinks, getFileLink(upload))
 			}
 		}
 		// Now that we're done, redirect back to the main page

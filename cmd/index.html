@@ -17,9 +17,11 @@
     footer {
       display: flex;
       flex-direction: row;
+      flex-wrap: wrap;
       gap: 0.75em;
       font-size: 0.9em;
       color: #777;
+      margin-top: 0.5em;
     }
 
     footer>* {
@@ -42,8 +44,27 @@
       display: flex;
       flex-direction: row;
       flex-wrap: wrap;
-      gap: 0.2em;
+      gap: 0.4em;
       margin-top: 0.6em;
+    }
+
+    #accountinfo summary {
+      margin-bottom: 0.25em;
+    }
+
+    #accountinfo table td {
+      padding: 0.2em 0.5em;
+    }
+
+    #accountinfo table,
+    #accountinfo td {
+      border: 1px solid black;
+      border-collapse: collapse;
+    }
+
+    #accountinfo table tr td:first-child {
+      font-weight: bold;
+      text-align: right;
     }
 
     .liketable {
@@ -84,6 +105,7 @@
 
     .fileitem .filename {
       padding-right: 1em;
+      word-break: break-word;
     }
 
     .fileitem time {
@@ -100,10 +122,12 @@
 </head>
 
 <body>
+
+  <!-- Top header thing, including the forms -->
   <center>
     <h2>Quick File Uploader</h2>
     <!-- Login or file upload form -->
-    {{if eq .account ""}}
+    {{if not .loggedin}}
     <form action="setuser" method="POST">
       <input type="text" placeholder="Account" name="account">
       <input type="submit" value="Set account">
@@ -143,30 +167,64 @@
 
   <!-- File list -->
   <hr>
+
   {{if len .files}}
   <div id="filelist" class="liketable">
     {{range .files}}
     <div class="fileitem">
-      <a href="file/{{.ID}}" class="filename">{{.Name}}</a>
+      <a href="{{. | FileLink}}" class="filename">{{.Name}}</a>
       <span class="filesize">{{.Length | BytesI}}</span>
       <time class="filedate">{{.Date | NiceDate}}</time>
       {{if NotTooLong .Expire}}
       <span class="fileexpire" title="Expires on: {{.Expire | NiceDate}}">(Expires {{.Expire | Until}})</span>
+      {{else}}
+      <span class="filepermanent"></span>
+      {{end}}
+      {{if eq $.account .Account}}
+      <form method="POST" action="/delete/{{.ID}}"
+        onsubmit="return confirm('Are you sure you want to delete {{.Name}}?')">
+        <input type="submit" value="X">
+      </form>
+      {{else}}
+      <span class="filenodelete"></span>
       {{end}}
     </div>
     {{end}}
   </div>
+
   <div id="pagelist">
     <span>Pages:</span>
     {{range .pagelist}}
     <a href="?page={{.}}">{{if eq $.page .}}<b>{{.}}</b>{{else}}{{.}}{{end}}</a>
     {{end}}
   </div>
+
   {{else}}
   <div>No files yet!</div>
   {{end}}
+
   <hr>
 
+  <!-- User account information (nothing private) -->
+  {{if .loggedin}}
+  <details id="accountinfo">
+    <summary>Account info</summary>
+    <table>
+      <tr>
+        <td>Quota:</td>
+        <td>{{.acconf.UploadLimit | BytesI64}}</td>
+        <td>({{.userstatistics.TotalSize | BytesI64}} used)</td>
+      </tr>
+      <tr>
+        <td>File limit:</td>
+        <td>{{.acconf.FileLimit}}</td>
+        <td>({{.userstatistics.Count}} uploaded)</td>
+      </tr>
+    </table>
+  </details>
+  {{end}}
+
+  <!-- Server information and stuff -->
   <footer>
     <span id="servertime">Server time: {{.time | NiceDate}}</span>
     <span id="statistics">{{.statistics.Count}} files | {{.statistics.TotalSize | BytesI64}}</span>
