@@ -15,7 +15,7 @@ import (
 )
 
 func uniqueFile(prefix, extension string) string {
-	os.MkdirAll("ignore", 0600)
+	os.MkdirAll("ignore", 0700)
 	return filepath.Join("ignore", fmt.Sprintf("%s_%s%s", time.Now().Format("20060102_150405.000"), prefix, extension))
 }
 
