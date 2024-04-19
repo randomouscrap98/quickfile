@@ -9,6 +9,8 @@
 *.dylib
 
 # My files
+dist/
+build/
 quickfile
 cmd/cmd
 uploads
