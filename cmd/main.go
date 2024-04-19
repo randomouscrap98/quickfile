@@ -170,12 +170,15 @@ func parseTags(tags string) []string {
 }
 
 func getFileLinkName(f *quickfile.UploadFile) string {
-	name, ext := path.Split(f.Name)
+	ext := path.Ext(f.Name)
+	name := f.Name[:len(f.Name) - len(ext)]
 	return fmt.Sprintf("%s%s", slug.Make(name), ext)
 }
 
 func getFileLink(f *quickfile.UploadFile) string {
-	return fmt.Sprintf("file/%d/%s", f.ID, getFileLinkName(f))
+	name := getFileLinkName(f)
+	//log.Printf("IN FILELINK WITH FILE: %s, NAME: %s, SLUG: %s\n", f.Name, name, slug.Make(f.Name))
+	return fmt.Sprintf("file/%d/%s", f.ID, name)
 }
 
 func getIndexTemplate(_ *quickfile.Config) (*template.Template, error) {
@@ -354,7 +357,6 @@ func main() {
 		tags := parseTags(r.FormValue("tags"))
 		// We support multi-file upload, but every file gets the same expire and tags
 		files := r.MultipartForm.File["files"]
-		fileLinks := make([]string, 0, len(files))
 		// Iterate over each file
 		for _, fileHeader := range files {
 			file, err := fileHeader.Open()
@@ -377,7 +379,6 @@ func main() {
 				return
 			} else {
 				log.Printf("User %s uploaded file %s (ID: %d, %s)\n", upload.Account, upload.Name, upload.ID, humanize.Bytes(uint64(upload.Length)))
-				fileLinks = append(fileLinks, getFileLink(upload))
 			}
 		}
 		// Now that we're done, redirect back to the main page

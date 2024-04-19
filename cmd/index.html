@@ -182,7 +182,7 @@
       <span class="filepermanent"></span>
       {{end}}
       {{if eq $.account .Account}}
-      <form method="POST" action="/delete/{{.ID}}"
+      <form method="POST" action="delete/{{.ID}}"
         onsubmit="return confirm('Are you sure you want to delete {{.Name}}?')">
         <input type="submit" value="X">
       </form>
