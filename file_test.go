@@ -288,4 +288,51 @@ func TestCleanup(t *testing.T) {
 	if vstats.NewSize > ChunkSize*NUMCHUNKS*2 || vstats.NewSize < ChunkSize*NUMCHUNKS {
 		t.Fatalf("Bad new size calc: %d\n", vstats.NewSize)
 	}
+
+	// Since we're here, let's also test the seeking capabilities
+	reader, err := openChunkReaderRaw(result1.ID, config)
+	if err != nil {
+		t.Fatalf("Couldn't open the chunk reader: %s\n", err)
+	}
+
+	// Read a bit, we'll be in the middle of chunk 1
+	buf := make([]byte, 50)
+	_, err = io.ReadFull(reader, buf)
+	if err != nil {
+		t.Fatalf("Couldn't read first chunk: %s\n", err)
+	}
+
+	if !bytes.Equal(buf, expectedData[:50]) {
+		t.Fatalf("First 50 bytes didn't match\n")
+	}
+	if reader.Offset != 50 {
+		t.Fatalf("Offset not 50: is %d\n", reader.Offset)
+	}
+
+	// Now seek to someplace in the middle of the second chunk
+	n, err := reader.Seek(ChunkSize+900, io.SeekStart)
+	if err != nil {
+		t.Fatalf("Couldn't seek: %s\n", err)
+	}
+	if n != ChunkSize+900 {
+		t.Fatalf("Wrong offset: %d vs %d\n", n, ChunkSize+900)
+	}
+
+	// Start reading another 50 bytes. Should be decent...
+	_, err = io.ReadFull(reader, buf)
+	if err != nil {
+		t.Fatalf("Couldn't read in the middle somewhere: %s\n", err)
+	}
+	if !bytes.Equal(buf, expectedData[n:n+50]) {
+		t.Fatalf("Middle 50 bytes didn't match\n")
+	}
+
+	// Now seek to end
+	n, err = reader.Seek(0, io.SeekEnd)
+	if err != nil {
+		t.Fatalf("Couldn't seek to end: %s\n", err)
+	}
+	if n != int64(len(expectedData)) {
+		t.Fatalf("End not expected: %d vs %d\n", n, len(expectedData))
+	}
 }

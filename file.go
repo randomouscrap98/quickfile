@@ -38,48 +38,88 @@ func (uf *UploadFile) IsExpired() bool {
 	return uf.Expire.Before(time.Now())
 }
 
+// WARN: This reader assumes each chunk is the same size, up until the last!!
 type ChunkReader struct {
-	Db        *sql.DB
-	Stmt      *sql.Stmt
-	Buffer    []byte
-	CurrentId int64
-	Fid       int64
+	Db     *sql.DB
+	Stmt   *sql.Stmt
+	Buffer []byte
+	Length int64 // Need the length for whence end
+	Offset int64 // This is a read seeker now
+	Fid    int64
 }
 
 // Open a special reader which reads data from the sqlite database
-func OpenChunkReader(id int64, config *Config) (io.ReadCloser, error) {
-	db, err := config.OpenDb()
+func openChunkReaderRaw(id int64, config *Config) (*ChunkReader, error) {
+	var err error
+	cr := &ChunkReader{Fid: id}
+	cr.Db, err = config.OpenDb()
 	if err != nil {
 		return nil, err
 	}
-	stmt, err := db.Prepare("SELECT cid, data FROM chunks WHERE fid = ? AND cid > ? LIMIT 1")
+	err = cr.Db.QueryRow("SELECT length FROM meta WHERE fid = ?", id).Scan(&cr.Length)
 	if err != nil {
-		db.Close()
+		cr.Db.Close()
 		return nil, err
 	}
-	return &ChunkReader{Db: db, Stmt: stmt, Fid: id}, nil
+	cr.Stmt, err = cr.Db.Prepare("SELECT data FROM chunks WHERE fid = ? ORDER BY cid LIMIT 1 OFFSET ?")
+	if err != nil {
+		cr.Db.Close()
+		return nil, err
+	}
+	return cr, nil
+}
+
+func OpenChunkReader(id int64, config *Config) (io.ReadSeekCloser, error) {
+	return openChunkReaderRaw(id, config)
 }
 
 func (cr *ChunkReader) Read(out []byte) (int, error) {
 	// If our buffer is empty, read the next chunk into it from the database
 	if len(cr.Buffer) == 0 {
-		err := cr.Stmt.QueryRow(cr.Fid, cr.CurrentId).Scan(&cr.CurrentId, &cr.Buffer)
+		err := cr.Stmt.QueryRow(cr.Fid, cr.Offset/ChunkSize).Scan(&cr.Buffer)
 		if err != nil {
-			if err != sql.ErrNoRows {
-				// Something really unexpected happened
-				return 0, err
-			} else {
+			if err == sql.ErrNoRows {
 				// Something normal happened. Nothing in the buffer and nothing in the DB
 				return 0, io.EOF
+			} else {
+				// Something really unexpected happened
+				return 0, err
 			}
 		}
+		// Need to skip an amount of bytes from the chunk
+		cr.Buffer = cr.Buffer[cr.Offset%ChunkSize:]
 	}
 	// Getting here means we have something in the buffer. Copy as much as we can and
 	// mutate the underlying buffer for future calls. This means sometimes read alignment
 	// is bad and the next read is like 1 byte or something, but whatever
 	copyLen := copy(out, cr.Buffer)
 	cr.Buffer = cr.Buffer[copyLen:]
+	cr.Offset += int64(copyLen)
 	return copyLen, nil
+}
+
+func (cr *ChunkReader) Seek(offset int64, whence int) (int64, error) {
+	// Immediately delete the old buffer, it's useless now
+	cr.Buffer = make([]byte, 0)
+	var relative int64
+	switch whence {
+	case io.SeekStart:
+		relative = 0
+	case io.SeekEnd:
+		relative = cr.Length
+	case io.SeekCurrent:
+		relative = cr.Offset
+	default:
+		return 0, fmt.Errorf("invalid whence")
+	}
+
+	newPos := relative + offset
+	if newPos < 0 { // I don't care if you're past the end, whatever
+		return 0, fmt.Errorf("negative position")
+	}
+
+	cr.Offset = newPos
+	return cr.Offset, nil
 }
 
 func (cr *ChunkReader) Close() error {
