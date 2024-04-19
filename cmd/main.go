@@ -257,7 +257,8 @@ func main() {
 			http.Error(w, fmt.Sprintf("Can't find file %d", id), http.StatusNotFound)
 			return
 		}
-		if name != getFileLinkName(fileinfo) {
+		linkname := getFileLinkName(fileinfo)
+		if name != linkname {
 			http.Error(w, fmt.Sprintf("Can't find file %d (bad name?)", id), http.StatusNotFound)
 			return
 		}
@@ -266,13 +267,9 @@ func main() {
 			http.Error(w, fmt.Sprintf("Can't find file data %d (this is weird)", id), http.StatusNotFound)
 			return
 		}
-		//w.Header().Set("Content-Type", fileinfo.Mime)
-		w.Header().Set("ETag", fmt.Sprintf("quickfile_%d", fileinfo.ID))
-		//w.Header().Set("Last-Modified", fileinfo.Date.UTC().Format(http.TimeFormat))
-		//w.Header().Set("Content-Length", fmt.Sprint(fileinfo.Length))
+		w.Header().Set("Etag", fmt.Sprintf("\"quickfile_%d_%s\"", fileinfo.ID, linkname))
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d", int64(time.Duration(config.CacheTime).Seconds())))
 		http.ServeContent(w, r, fileinfo.Name, fileinfo.Date, reader)
-		//io.Copy(w, reader)
 	})
 
 	r.Post("/delete/{id}", func(w http.ResponseWriter, r *http.Request) {
