@@ -40,8 +40,9 @@ func (uf *UploadFile) IsExpired() bool {
 
 // WARN: This reader assumes each chunk is the same size, up until the last!!
 type ChunkReader struct {
-	Db     *sql.DB
-	Stmt   *sql.Stmt
+	Db   *sql.DB
+	Stmt *sql.Stmt
+	//realBuf []byte // The actual internal buffer for chunks to optimize GC
 	Buffer []byte
 	Length int64 // Need the length for whence end
 	Offset int64 // This is a read seeker now
@@ -51,7 +52,7 @@ type ChunkReader struct {
 // Open a special reader which reads data from the sqlite database
 func openChunkReaderRaw(id int64, config *Config) (*ChunkReader, error) {
 	var err error
-	cr := &ChunkReader{Fid: id}
+	cr := &ChunkReader{Fid: id} //, realBuf: make([]byte, ChunkSize)}
 	cr.Db, err = config.OpenDb()
 	if err != nil {
 		return nil, err
@@ -76,7 +77,8 @@ func OpenChunkReader(id int64, config *Config) (io.ReadSeekCloser, error) {
 func (cr *ChunkReader) Read(out []byte) (int, error) {
 	// If our buffer is empty, read the next chunk into it from the database
 	if len(cr.Buffer) == 0 {
-		err := cr.Stmt.QueryRow(cr.Fid, cr.Offset/ChunkSize).Scan(&cr.Buffer)
+		//var blob sql.RawBytes
+		err := cr.Stmt.QueryRow(cr.Fid, cr.Offset/ChunkSize).Scan(&cr.Buffer) //(&cr.realBuf) //blob)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				// Something normal happened. Nothing in the buffer and nothing in the DB
@@ -86,8 +88,9 @@ func (cr *ChunkReader) Read(out []byte) (int, error) {
 				return 0, err
 			}
 		}
+		//copy(cr.realBuf, blob)
 		// Need to skip an amount of bytes from the chunk
-		cr.Buffer = cr.Buffer[cr.Offset%ChunkSize:]
+		cr.Buffer = cr.Buffer[cr.Offset%ChunkSize:] //cr.realBuf[cr.Offset%ChunkSize:] //cr.Buffer[cr.Offset%ChunkSize:]
 	}
 	// Getting here means we have something in the buffer. Copy as much as we can and
 	// mutate the underlying buffer for future calls. This means sometimes read alignment

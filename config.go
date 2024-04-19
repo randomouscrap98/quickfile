@@ -41,6 +41,7 @@ type Config struct {
 	Datapath            string                    // Place to put the files
 	CookieName          string                    // Name of authentication cookie
 	Port                int                       // The port obviously
+	MemProfileFile      string                    // If set, determines where to store mem profile when endpoint called. Endpoint disabled if empty
 	TotalUploadLimit    int64                     // Max size for the totality of file uploads (not size of db!!)
 	DefaultUploadLimit  int64                     // Size in bytes of account upload
 	DefaultFileLimit    int                       // Default Amount of files per account

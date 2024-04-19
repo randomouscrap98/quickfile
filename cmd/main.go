@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"html/template"
-	//"io"
 	"log"
 	"math"
 	"net/http"
@@ -22,6 +21,9 @@ import (
 	"github.com/go-chi/httprate"
 	"github.com/gosimple/slug"
 	"github.com/pelletier/go-toml/v2"
+
+	"runtime"
+	"runtime/pprof"
 )
 
 const (
@@ -385,6 +387,24 @@ func main() {
 		// Now that we're done, redirect back to the main page
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	})
+
+	if config.MemProfileFile != "" {
+		log.Printf("WARN: Enabling memory profiler endpoint!")
+		r.Get("/memprofile", func(w http.ResponseWriter, r *http.Request) {
+			f, err := os.Create(config.MemProfileFile)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Could not create memory profile: %s", err), http.StatusInternalServerError)
+				return
+			}
+			defer f.Close() // error handling omitted for example
+			runtime.GC()    // get up-to-date statistics
+			if err := pprof.WriteHeapProfile(f); err != nil {
+				http.Error(w, fmt.Sprintf("Could not write memory profile: %s", err), http.StatusInternalServerError)
+				return
+			}
+			fmt.Fprintf(w, "Wrote memory profile")
+		})
+	}
 
 	log.Fatal(s.ListenAndServe())
 }
