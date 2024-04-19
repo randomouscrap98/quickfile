@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"html/template"
-	"io"
+	//"io"
 	"log"
 	"math"
 	"net/http"
@@ -171,7 +171,7 @@ func parseTags(tags string) []string {
 
 func getFileLinkName(f *quickfile.UploadFile) string {
 	ext := path.Ext(f.Name)
-	name := f.Name[:len(f.Name) - len(ext)]
+	name := f.Name[:len(f.Name)-len(ext)]
 	return fmt.Sprintf("%s%s", slug.Make(name), ext)
 }
 
@@ -264,12 +264,13 @@ func main() {
 			http.Error(w, fmt.Sprintf("Can't find file data %d (this is weird)", id), http.StatusNotFound)
 			return
 		}
-		w.Header().Set("Content-Type", fileinfo.Mime)
+		//w.Header().Set("Content-Type", fileinfo.Mime)
 		w.Header().Set("ETag", fmt.Sprintf("quickfile_%d", fileinfo.ID))
-		w.Header().Set("Last-Modified", fileinfo.Date.UTC().Format(http.TimeFormat))
-		w.Header().Set("Content-Length", fmt.Sprint(fileinfo.Length))
+		//w.Header().Set("Last-Modified", fileinfo.Date.UTC().Format(http.TimeFormat))
+		//w.Header().Set("Content-Length", fmt.Sprint(fileinfo.Length))
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d", int64(time.Duration(config.CacheTime).Seconds())))
-		io.Copy(w, reader)
+		http.ServeContent(w, r, fileinfo.Name, fileinfo.Date, reader)
+		//io.Copy(w, reader)
 	})
 
 	r.Post("/delete/{id}", func(w http.ResponseWriter, r *http.Request) {

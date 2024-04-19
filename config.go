@@ -39,7 +39,7 @@ type AccountConfig struct {
 type Config struct {
 	Timeout             Duration
 	Datapath            string                    // Place to put the files
-	CookieName   string // Name of authentication cookie
+	CookieName          string                    // Name of authentication cookie
 	Port                int                       // The port obviously
 	TotalUploadLimit    int64                     // Max size for the totality of file uploads (not size of db!!)
 	DefaultUploadLimit  int64                     // Size in bytes of account upload
