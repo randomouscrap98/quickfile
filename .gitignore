@@ -18,6 +18,7 @@ uploads.db
 ignore
 config.toml
 publish.sh
+mvdist.sh
 *.bin
 *.prof
 
