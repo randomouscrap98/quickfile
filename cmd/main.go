@@ -28,7 +28,7 @@ import (
 
 const (
 	ConfigFile = "config.toml"
-	AppVersion = "0.1"
+	AppVersion = "0.1.1"
 )
 
 func must(err error) {
