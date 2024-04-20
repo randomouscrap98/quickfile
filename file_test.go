@@ -233,7 +233,7 @@ func TestCleanup(t *testing.T) {
 	}
 
 	// Ensure only the one is there
-	fids, err := GetPaginatedFiles(0, config, "")
+	fids, err := GetPaginatedFiles(0, config, "", "")
 	if err != nil {
 		t.Fatalf("Couldn't get file ids: %s\n", err)
 	}
@@ -271,7 +271,7 @@ func TestCleanup(t *testing.T) {
 		t.Fatalf("Expected %d deleted chunks, got %d\n", NUMCHUNKS, stats.DeletedChunks)
 	}
 
-	fids, err = GetPaginatedFiles(0, config, "")
+	fids, err = GetPaginatedFiles(0, config, "", "")
 	if err != nil {
 		t.Fatalf("Couldn't get file ids: %s\n", err)
 	}

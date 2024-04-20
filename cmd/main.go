@@ -28,7 +28,7 @@ import (
 
 const (
 	ConfigFile      = "config.toml"
-	AppVersion      = "0.1.1"
+	AppVersion      = "0.2"
 	DefaultUnlisted = "default"
 )
 
@@ -117,6 +117,7 @@ func getBaseTemplateData(config *quickfile.Config, r *http.Request) map[string]a
 		data["account"] = account
 		data["loggedin"] = true
 		data["acconf"] = acconf
+		data["userfiles"] = getPaginated(page, config, account, errors)
 		userstatistics, err := quickfile.GetFileStatistics(account, config)
 		if err != nil {
 			log.Printf("WARN: couldn't get user statistics: %s\n", err)
@@ -139,18 +140,17 @@ func getBaseTemplateData(config *quickfile.Config, r *http.Request) map[string]a
 	}
 	data["pagecount"] = pagecount
 	data["pagelist"] = pagelist
-	data["files"] = getPaginated(page, config, false, errors)
-	data["userfiles"] = getPaginated(page, config, true, errors)
+	data["files"] = getPaginated(page, config, "", errors)
 	data["errors"] = errors
 	return data
 }
 
-func getPaginated(page int, config *quickfile.Config, unlisted bool, errors []string) []*quickfile.UploadFile {
-	realunlisted := ""
-	if unlisted {
-		realunlisted = DefaultUnlisted
+func getPaginated(page int, config *quickfile.Config, account string, errors []string) []*quickfile.UploadFile {
+	unlisted := ""
+	if account != "" {
+		unlisted = DefaultUnlisted
 	}
-	fids, err := quickfile.GetPaginatedFiles(page-1, config, realunlisted)
+	fids, err := quickfile.GetPaginatedFiles(page-1, config, unlisted, account)
 	if err != nil {
 		log.Printf("WARN: couldn't load paginated ids: %s\n", err)
 		errors = append(errors, "Couldn't load results, pagination error")
