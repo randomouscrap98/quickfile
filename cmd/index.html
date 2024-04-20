@@ -155,7 +155,9 @@
     </label>
     <label>
       <div>
-        <label><span>Unlisted:</span><input type="checkbox" name="unlisted"></label>
+        <!-- Currently, unlisted is just a checkbox, but in the future it might be buckets.
+             So, we need to have some reasonable value for the "bucket" -->
+        <label><span>Unlisted:</span><input type="checkbox" name="unlisted" value="default"></label>
       </div>
       <input type="submit" value="Upload">
     </label>
@@ -173,30 +175,40 @@
 
   <!-- File list -->
   <hr>
-
-  {{if len .files}}
-  <div id="filelist" class="liketable">
-    {{range .files}}
-    <div class="fileitem">
-      <a href="{{. | FileLink}}" class="filename">{{.Name}}</a>
-      <span class="filesize">{{.Length | BytesI}}</span>
-      <time class="filedate">{{.Date | NiceDate}}</time>
-      {{if NotTooLong .Expire}}
-      <span class="fileexpire" title="Expires on: {{.Expire | NiceDate}}">(Expires {{.Expire | Until}})</span>
-      {{else}}
-      <span class="filepermanent"></span>
-      {{end}}
-      {{if eq $.account .Account}}
-      <form method="POST" action="delete/{{.ID}}"
-        onsubmit="return confirm('Are you sure you want to delete {{.Name}}?')">
-        <input type="submit" value="X">
-      </form>
-      {{else}}
-      <span class="filenodelete"></span>
-      {{end}}
-    </div>
+  {{define "fileitems"}}
+  {{range .files}}
+  <div class="fileitem">
+    <a href="{{. | FileLink}}" class="filename">{{.Name}}</a>
+    <span class="filesize">{{.Length | BytesI}}</span>
+    <time class="filedate">{{.Date | NiceDate}}</time>
+    {{if NotTooLong .Expire}}
+    <span class="fileexpire" title="Expires on: {{.Expire | NiceDate}}">(Expires {{.Expire | Until}})</span>
+    {{else}}
+    <span class="filepermanent"></span>
+    {{end}}
+    {{if eq $.account .Account}}
+    <form method="POST" action="delete/{{.ID}}" onsubmit="return confirm('Are you sure you want to delete {{.Name}}?')">
+      <input type="submit" value="X">
+    </form>
+    {{else}}
+    <span class="filenodelete"></span>
     {{end}}
   </div>
+  {{end}}
+  {{end}}
+
+
+  {{if len .files}}
+  <div class="liketable filelist">
+    {{template "fileitems" dict "files" .files "account" .account}}
+  </div>
+
+  {{if .loggedin}}
+  <h3>Unlisted:</h3>
+  <div class="liketable filelist">
+    {{template "fileitems" dict "files" .userfiles "account" .account}}
+  </div>
+  {{end}}
 
   <div id="pagelist">
     <span>Pages:</span>

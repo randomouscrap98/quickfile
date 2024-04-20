@@ -27,8 +27,9 @@ import (
 )
 
 const (
-	ConfigFile = "config.toml"
-	AppVersion = "0.1.1"
+	ConfigFile      = "config.toml"
+	AppVersion      = "0.1.1"
+	DefaultUnlisted = "default"
 )
 
 func must(err error) {
@@ -138,7 +139,18 @@ func getBaseTemplateData(config *quickfile.Config, r *http.Request) map[string]a
 	}
 	data["pagecount"] = pagecount
 	data["pagelist"] = pagelist
-	fids, err := quickfile.GetPaginatedFiles(page-1, config, "")
+	data["files"] = getPaginated(page, config, false, errors)
+	data["userfiles"] = getPaginated(page, config, true, errors)
+	data["errors"] = errors
+	return data
+}
+
+func getPaginated(page int, config *quickfile.Config, unlisted bool, errors []string) []*quickfile.UploadFile {
+	realunlisted := ""
+	if unlisted {
+		realunlisted = DefaultUnlisted
+	}
+	fids, err := quickfile.GetPaginatedFiles(page-1, config, realunlisted)
 	if err != nil {
 		log.Printf("WARN: couldn't load paginated ids: %s\n", err)
 		errors = append(errors, "Couldn't load results, pagination error")
@@ -153,10 +165,9 @@ func getBaseTemplateData(config *quickfile.Config, r *http.Request) map[string]a
 				files = append(files, results[id])
 			}
 		}
-		data["files"] = files
+		return files
 	}
-	data["errors"] = errors
-	return data
+	return nil
 }
 
 func parseTags(tags string) []string {

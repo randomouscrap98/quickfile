@@ -209,19 +209,6 @@ func VerifyDatabase(config *Config) error {
 	if err != nil {
 		return err
 	}
-	// if dbVersion == "1" {
-	// 	log.Printf("Detected DB version 1, updating to version 2")
-	// 	// Modify the table then try again
-	// 	_, err = db.Exec(`ALTER TABLE meta ADD unlisted TEXT`)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	_, err = db.Exec(`UPDATE sysvalues SET value=? WHERE "key"=?`, "2", "version")
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	return VerifyDatabase(config)
-	// }
 	if dbVersion != DatabaseVersion {
 		return fmt.Errorf("incompatible database version: expected %s, got %s", DatabaseVersion, dbVersion)
 	}
