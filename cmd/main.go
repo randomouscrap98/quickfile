@@ -202,6 +202,7 @@ func getIndexTemplate(_ *quickfile.Config) (*template.Template, error) {
 		"NiceDate":   func(t time.Time) string { return t.UTC().Format(time.RFC3339) },
 		"Until":      func(t time.Time) string { return strings.Trim(humanize.RelTime(t, time.Now(), "in the past", ""), " ") },
 		"NotTooLong": func(t time.Time) bool { return t.Before(time.Now().AddDate(50, 0, 0)) },
+		"arr":        func(els ...any) []any { return els },
 		"FileLink":   getFileLink,
 	}).ParseFiles("index.html")
 }

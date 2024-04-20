@@ -18,6 +18,11 @@
       text-align: center;
     }
 
+    h3 {
+      font-size: 1em;
+      margin: 0.5em 0;
+    }
+
     footer {
       display: flex;
       flex-direction: row;
@@ -69,6 +74,10 @@
     #uploadform {
       margin: auto;
       padding-right: 1em;
+    }
+
+    #accountform {
+      margin: auto;
     }
 
     #pagelist {
@@ -133,10 +142,12 @@
   <h2>🐇 Quick File Uploader 🍃</h2>
   <!-- Login or file upload form -->
   {{if not .loggedin}}
-  <form action="setuser" method="POST">
-    <input type="password" placeholder="Account" name="account">
-    <input type="submit" value="Set account">
-  </form>
+  <center>
+    <form action="setuser" id="accountform" method="POST">
+      <input type="password" placeholder="Account" name="account">
+      <input type="submit" value="Set account">
+    </form>
+  </center>
   {{else}}
   <form class="liketable" id="uploadform" enctype='multipart/form-data' action="upload" method="POST">
     <label>
@@ -174,9 +185,8 @@
   {{end}}
 
   <!-- File list -->
-  <hr>
   {{define "fileitems"}}
-  {{range .files}}
+  {{range (index . 0)}}
   <div class="fileitem">
     <a href="{{. | FileLink}}" class="filename">{{.Name}}</a>
     <span class="filesize">{{.Length | BytesI}}</span>
@@ -186,7 +196,7 @@
     {{else}}
     <span class="filepermanent"></span>
     {{end}}
-    {{if eq $.account .Account}}
+    {{if eq (index $ 1) .Account}}
     <form method="POST" action="delete/{{.ID}}" onsubmit="return confirm('Are you sure you want to delete {{.Name}}?')">
       <input type="submit" value="X">
     </form>
@@ -197,17 +207,23 @@
   {{end}}
   {{end}}
 
+  <hr>
 
   {{if len .files}}
   <div class="liketable filelist">
-    {{template "fileitems" dict "files" .files "account" .account}}
+    {{template "fileitems" (arr .files .account)}}
   </div>
+  {{else}}
+  <div>No files yet!</div>
+  {{end}}
 
   {{if .loggedin}}
+  {{if len .userfiles}}
   <h3>Unlisted:</h3>
   <div class="liketable filelist">
-    {{template "fileitems" dict "files" .userfiles "account" .account}}
+    {{template "fileitems" (arr .userfiles .account)}}
   </div>
+  {{end}}
   {{end}}
 
   <div id="pagelist">
@@ -216,10 +232,6 @@
     <a href="?page={{.}}">{{if eq $.page .}}<b>{{.}}</b>{{else}}{{.}}{{end}}</a>
     {{end}}
   </div>
-
-  {{else}}
-  <div>No files yet!</div>
-  {{end}}
 
   <hr>
 
