@@ -6,8 +6,8 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -19,7 +19,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httprate"
-	"github.com/gosimple/slug"
 	"github.com/pelletier/go-toml/v2"
 
 	"runtime"
@@ -28,7 +27,7 @@ import (
 
 const (
 	ConfigFile      = "config.toml"
-	AppVersion      = "0.2"
+	AppVersion      = "0.2.1"
 	DefaultUnlisted = "default"
 )
 
@@ -183,14 +182,11 @@ func parseTags(tags string) []string {
 }
 
 func getFileLinkName(f *quickfile.UploadFile) string {
-	ext := path.Ext(f.Name)
-	name := f.Name[:len(f.Name)-len(ext)]
-	return fmt.Sprintf("%s%s", slug.Make(name), ext)
+	return url.PathEscape(f.Name)
 }
 
 func getFileLink(f *quickfile.UploadFile) string {
 	name := getFileLinkName(f)
-	//log.Printf("IN FILELINK WITH FILE: %s, NAME: %s, SLUG: %s\n", f.Name, name, slug.Make(f.Name))
 	return fmt.Sprintf("file/%d/%s", f.ID, name)
 }
 
