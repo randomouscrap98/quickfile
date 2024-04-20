@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	    "crypto/md5"
+    "encoding/hex"
 
 	"github.com/randomouscrap98/quickfile"
 
@@ -181,12 +183,12 @@ func parseTags(tags string) []string {
 	return result
 }
 
-func getFileLinkName(f *quickfile.UploadFile) string {
-	return url.PathEscape(f.Name)
-}
+// func getFileLinkName(f *quickfile.UploadFile) string {
+// 	return url.PathEscape(f.Name)
+// }
 
 func getFileLink(f *quickfile.UploadFile) string {
-	name := getFileLinkName(f)
+	name := url.PathEscape(f.Name) // getFileLinkName(f)
 	return fmt.Sprintf("file/%d/%s", f.ID, name)
 }
 
@@ -265,8 +267,13 @@ func main() {
 			http.Error(w, fmt.Sprintf("Can't find file %d", id), http.StatusNotFound)
 			return
 		}
-		linkname := getFileLinkName(fileinfo)
-		if name != linkname {
+		requestedName,err := url.PathUnescape(name)
+		if err != nil {
+			log.Printf("Path unescape failed for file lookup: %s\n", err)
+		}
+		//linkname := getFileLinkName(fileinfo)
+		if err != nil || requestedName != fileinfo.Name {
+			log.Printf("File lookup for %d bad name: '%s' vs '%s'", id, requestedName, fileinfo.Name)
 			http.Error(w, fmt.Sprintf("Can't find file %d (bad name?)", id), http.StatusNotFound)
 			return
 		}
@@ -275,7 +282,9 @@ func main() {
 			http.Error(w, fmt.Sprintf("Can't find file data %d (this is weird)", id), http.StatusNotFound)
 			return
 		}
-		w.Header().Set("Etag", fmt.Sprintf("\"quickfile_%d_%s\"", fileinfo.ID, linkname))
+		filenameHash := md5.Sum([]byte(fileinfo.Name))
+		filenameHex := hex.EncodeToString(filenameHash[:])
+		w.Header().Set("Etag", fmt.Sprintf("\"quickfile%s_%d_%s\"", AppVersion, fileinfo.ID, filenameHex))
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d", int64(time.Duration(config.CacheTime).Seconds())))
 		http.ServeContent(w, r, fileinfo.Name, fileinfo.Date, reader)
 	})
