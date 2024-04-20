@@ -138,7 +138,7 @@ func getBaseTemplateData(config *quickfile.Config, r *http.Request) map[string]a
 	}
 	data["pagecount"] = pagecount
 	data["pagelist"] = pagelist
-	fids, err := quickfile.GetPaginatedFiles(page-1, config)
+	fids, err := quickfile.GetPaginatedFiles(page-1, config, "")
 	if err != nil {
 		log.Printf("WARN: couldn't load paginated ids: %s\n", err)
 		errors = append(errors, "Couldn't load results, pagination error")
@@ -272,40 +272,6 @@ func main() {
 		http.ServeContent(w, r, fileinfo.Name, fileinfo.Date, reader)
 	})
 
-	r.Post("/delete/{id}", func(w http.ResponseWriter, r *http.Request) {
-		idraw := quickfile.StringUpTo("_", chi.URLParam(r, "id"))
-		id, err := strconv.ParseInt(idraw, 10, 64)
-		if err != nil {
-			http.Error(w, "Bad file ID format", http.StatusBadRequest)
-			return
-		}
-		user, _, exists := getAccount(config, r)
-		if !exists {
-			log.Printf("Delete attempt without an account\n")
-			http.Error(w, "Invalid account", http.StatusUnauthorized)
-			return
-		}
-		file, err := quickfile.GetFileById(id, config)
-		if err != nil {
-			log.Printf("Delete file lookup error: %s\n", err)
-			http.Error(w, "File lookup error", http.StatusNotFound)
-			return
-		}
-		if file.Account != user {
-			log.Printf("Delete attempt account mismatch: %s deleting %s\n", user, file.Account)
-			http.Error(w, "Invalid account", http.StatusUnauthorized)
-			return
-		}
-		// Yes, it is known that you can repeatedly "delete" a file while it still
-		// exists on the server. I don't think it's an issue
-		err = quickfile.ExpireFile(id, config)
-		if err != nil {
-			log.Printf("Delete error on %d: %s\n", id, err)
-			http.Error(w, "Error on delete", http.StatusBadRequest)
-		}
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-	})
-
 	r.Post("/setuser", func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, int64(config.SimpleFormLimit))
 		if err := r.ParseForm(); err != nil {
@@ -355,6 +321,7 @@ func main() {
 			return
 		}
 		tags := parseTags(r.FormValue("tags"))
+		unlisted := r.FormValue("unlisted")
 		// We support multi-file upload, but every file gets the same expire and tags
 		files := r.MultipartForm.File["files"]
 		// Iterate over each file
@@ -371,6 +338,7 @@ func main() {
 				Account:  account,
 				Tags:     tags,
 				Expire:   expire,
+				Unlisted: unlisted,
 			}
 			upload, err := quickfile.InsertFile(&meta, file, config)
 			if err != nil {
@@ -382,6 +350,40 @@ func main() {
 			}
 		}
 		// Now that we're done, redirect back to the main page
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	})
+
+	r.Post("/delete/{id}", func(w http.ResponseWriter, r *http.Request) {
+		idraw := chi.URLParam(r, "id")
+		id, err := strconv.ParseInt(idraw, 10, 64)
+		if err != nil {
+			http.Error(w, "Bad file ID format", http.StatusBadRequest)
+			return
+		}
+		user, _, exists := getAccount(config, r)
+		if !exists {
+			log.Printf("Delete attempt without an account\n")
+			http.Error(w, "Invalid account", http.StatusUnauthorized)
+			return
+		}
+		file, err := quickfile.GetFileById(id, config)
+		if err != nil {
+			log.Printf("Delete file lookup error: %s\n", err)
+			http.Error(w, "File lookup error", http.StatusNotFound)
+			return
+		}
+		if file.Account != user {
+			log.Printf("Delete attempt account mismatch: %s deleting %s\n", user, file.Account)
+			http.Error(w, "Invalid account", http.StatusUnauthorized)
+			return
+		}
+		// Yes, it is known that you can repeatedly "delete" a file while it still
+		// exists on the server. I don't think it's an issue
+		err = quickfile.ExpireFile(id, config)
+		if err != nil {
+			log.Printf("Delete error on %d: %s\n", id, err)
+			http.Error(w, "Error on delete", http.StatusBadRequest)
+		}
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	})
 

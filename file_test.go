@@ -100,6 +100,24 @@ func TestVariousPrechecks(t *testing.T) {
 		t.Fatalf("Should've failed because too short expire!")
 	}
 	log.Printf("Expected error expire: %s\n", err)
+	meta = workingMeta()
+	meta.Filename = "thing.css"
+	mime, _, err = FilePrecheck(&meta, config)
+	if err != nil {
+		t.Fatalf("Error: %s", err)
+	}
+	if mime != "text/css; charset=utf-8" {
+		t.Fatalf("Expected text/css; charset=utf-8, got %s", mime)
+	}
+	meta = workingMeta()
+	meta.Filename = "thing.html" //This should convert to plain
+	mime, _, err = FilePrecheck(&meta, config)
+	if err != nil {
+		t.Fatalf("Error: %s", err)
+	}
+	if mime != "text/plain; charset=utf-8" {
+		t.Fatalf("Expected text/plain; charset=utf-8, got %s", mime)
+	}
 }
 
 func TestLive(t *testing.T) {
@@ -152,6 +170,7 @@ func TestLive(t *testing.T) {
 		randomizeArray(expectedData)
 		meta.Filename = fmt.Sprintf("file_%d.zip", l)
 		meta.Tags = append(meta.Tags, fmt.Sprintf("extra:%d", l))
+		meta.Unlisted = fmt.Sprintf("bucket_%d", l)
 		file = bytes.NewBuffer(expectedData)
 		result, err = InsertFile(&meta, file, config)
 		if err != nil {
@@ -214,7 +233,7 @@ func TestCleanup(t *testing.T) {
 	}
 
 	// Ensure only the one is there
-	fids, err := GetPaginatedFiles(0, config)
+	fids, err := GetPaginatedFiles(0, config, "")
 	if err != nil {
 		t.Fatalf("Couldn't get file ids: %s\n", err)
 	}
@@ -252,7 +271,7 @@ func TestCleanup(t *testing.T) {
 		t.Fatalf("Expected %d deleted chunks, got %d\n", NUMCHUNKS, stats.DeletedChunks)
 	}
 
-	fids, err = GetPaginatedFiles(0, config)
+	fids, err = GetPaginatedFiles(0, config, "")
 	if err != nil {
 		t.Fatalf("Couldn't get file ids: %s\n", err)
 	}

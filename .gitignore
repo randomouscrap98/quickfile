@@ -13,8 +13,8 @@ dist/
 build/
 quickfile
 cmd/cmd
+cmd/*.db
 uploads
-uploads.db
 ignore
 config.toml
 publish.sh

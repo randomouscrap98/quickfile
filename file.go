@@ -7,13 +7,14 @@ import (
 	"log"
 	"mime"
 	"path"
+	"strings"
 	"sync"
 	"time"
 )
 
 const (
 	ChunkSize       = 65536
-	DatabaseVersion = "1"
+	DatabaseVersion = "2"
 )
 
 type FileInsertMeta struct {
@@ -21,6 +22,7 @@ type FileInsertMeta struct {
 	Tags     []string
 	Expire   time.Duration
 	Account  string
+	Unlisted string
 }
 
 type UploadFile struct {
@@ -156,6 +158,7 @@ func CreateTables(config *Config) error {
       mime TEXT NOT NULL,
       created DATETIME NOT NULL,
       expire DATETIME,
+      unlisted TEXT NOT NULL DEFAULT "",
       length INT NOT NULL,
 	  compression TEXT
     );`,
@@ -174,8 +177,7 @@ func CreateTables(config *Config) error {
 	  "key" TEXT PRIMARY KEY,
 	  value TEXT
 	);`,
-		`CREATE INDEX IF NOT EXISTS idx_meta_account_expire ON meta (account,expire)`,
-		`CREATE INDEX IF NOT EXISTS idx_meta_expire ON meta (expire)`,
+		`CREATE INDEX IF NOT EXISTS idx_meta_expire_unlisted_account ON meta (expire,unlisted,account)`,
 		`CREATE INDEX IF NOT EXISTS idx_tags_fid ON tags (fid)`,
 		`CREATE INDEX IF NOT EXISTS idx_tags_tag ON tags (tag)`,
 		`CREATE INDEX IF NOT EXISTS idx_chunks_fid ON chunks (fid)`,
@@ -207,6 +209,19 @@ func VerifyDatabase(config *Config) error {
 	if err != nil {
 		return err
 	}
+	// if dbVersion == "1" {
+	// 	log.Printf("Detected DB version 1, updating to version 2")
+	// 	// Modify the table then try again
+	// 	_, err = db.Exec(`ALTER TABLE meta ADD unlisted TEXT`)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	_, err = db.Exec(`UPDATE sysvalues SET value=? WHERE "key"=?`, "2", "version")
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	return VerifyDatabase(config)
+	// }
 	if dbVersion != DatabaseVersion {
 		return fmt.Errorf("incompatible database version: expected %s, got %s", DatabaseVersion, dbVersion)
 	}
@@ -385,10 +400,11 @@ func FilePrecheck(meta *FileInsertMeta, config *Config) (string, int64, error) {
 		return "", 0, fmt.Errorf("filename must have extension")
 	}
 
-	mimeType := StringUpTo(";", mime.TypeByExtension(extension))
-	mimeRedirect, ok := config.MimeTypeRedirect[mimeType]
+	mimeType := mime.TypeByExtension(extension)
+	mimeBase, mimeExtra := StringUpTo(";", mimeType)
+	mimeRedirect, ok := config.MimeTypeRedirect[strings.Trim(mimeBase, " ")]
 	if ok {
-		mimeType = mimeRedirect
+		mimeType = mimeRedirect + mimeExtra
 	}
 	if mimeType == "" {
 		return "", 0, fmt.Errorf("unknown mimetype")
@@ -441,8 +457,8 @@ func InsertFile(meta *FileInsertMeta, file io.Reader, config *Config) (*UploadFi
 
 	// Insert the main file entry
 	sqlresult, err := tx.Exec(
-		"INSERT INTO meta(name, account, mime, created, expire, length) VALUES(?,?,?,?,?,?)",
-		meta.Filename, meta.Account, mimeType, time.Now(), time.Now().Add(meta.Expire), 0,
+		"INSERT INTO meta(name, account, mime, created, expire, length, unlisted) VALUES(?,?,?,?,?,?,?)",
+		meta.Filename, meta.Account, mimeType, time.Now(), time.Now().Add(meta.Expire), 0, meta.Unlisted,
 	)
 	if err != nil {
 		return nil, err

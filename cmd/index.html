@@ -44,8 +44,31 @@
       display: none !important;
     }
 
+    .liketable {
+      display: table;
+    }
+
+    .liketable>* {
+      display: table-row;
+    }
+
+    .liketable>*>* {
+      display: table-cell;
+    }
+
+    form.liketable>*>*:first-child {
+      padding-right: 0.75em;
+      text-align: right;
+    }
+
+    form.liketable>*>input {
+      width: 100%;
+      box-sizing: border-box;
+    }
+
     #uploadform {
       margin: auto;
+      padding-right: 1em;
     }
 
     #pagelist {
@@ -75,28 +98,6 @@
     #accountinfo table tr td:first-child {
       font-weight: bold;
       text-align: right;
-    }
-
-    .liketable {
-      display: table;
-    }
-
-    .liketable>* {
-      display: table-row;
-    }
-
-    .liketable>*>* {
-      display: table-cell;
-    }
-
-    form.liketable>*>*:first-child {
-      padding-right: 0.75em;
-      text-align: right;
-    }
-
-    form.liketable>*>input {
-      width: 100%;
-      box-sizing: border-box;
     }
 
     .fileitem>* {

@@ -117,7 +117,7 @@ func GetFileById(id int64, config *Config) (*UploadFile, error) {
 }
 
 // Return file ids ordered by newest first
-func GetPaginatedFiles(page int, config *Config) ([]int64, error) {
+func GetPaginatedFiles(page int, config *Config, unlisted string) ([]int64, error) {
 	perpage := config.ResultsPerPage
 	skip := perpage * page
 	db, err := config.OpenDb()
@@ -128,8 +128,8 @@ func GetPaginatedFiles(page int, config *Config) ([]int64, error) {
 
 	result := make([]int64, 0, perpage)
 	rows, err := db.Query(
-		"SELECT fid FROM meta WHERE (expire IS NULL OR expire > ?) ORDER BY fid DESC LIMIT ? OFFSET ?",
-		time.Now(), perpage, skip,
+		"SELECT fid FROM meta WHERE unlisted=? AND (expire IS NULL OR expire > ?) ORDER BY fid DESC LIMIT ? OFFSET ?",
+		unlisted, time.Now(), perpage, skip,
 	)
 	if err != nil {
 		return nil, err
