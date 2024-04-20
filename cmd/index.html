@@ -14,6 +14,10 @@
       font-family: sans-serif;
     }
 
+    h2 {
+      text-align: center;
+    }
+
     footer {
       display: flex;
       flex-direction: row;
@@ -40,6 +44,10 @@
       display: none !important;
     }
 
+    #uploadform {
+      margin: auto;
+    }
+
     #pagelist {
       display: flex;
       flex-direction: row;
@@ -52,7 +60,8 @@
       margin-bottom: 0.25em;
     }
 
-    #accountinfo table td, #accountinfo table th {
+    #accountinfo table td,
+    #accountinfo table th {
       padding: 0.2em 0.5em;
     }
 
@@ -72,35 +81,30 @@
       display: table;
     }
 
-    .liketable label {
+    .liketable>* {
       display: table-row;
     }
 
-    .liketable label>* {
+    .liketable>*>* {
       display: table-cell;
     }
 
-    .liketable label span {
+    form.liketable>*>*:first-child {
       padding-right: 0.75em;
       text-align: right;
     }
 
-    .liketable label input {
+    form.liketable>*>input {
       width: 100%;
       box-sizing: border-box;
     }
 
-    .liketable .fileitem {
-      display: table-row;
-    }
-
-    .liketable .fileitem>* {
-      display: table-cell;
+    .fileitem>* {
       padding: 0.2em;
       padding-right: 0.4em;
     }
 
-    .liketable .fileitem:nth-child(even) {
+    .fileitem:nth-child(even) {
       background-color: rgba(127, 127, 127, 0.1);
     }
 
@@ -125,37 +129,37 @@
 <body>
 
   <!-- Top header thing, including the forms -->
-  <center>
-    <h2>Quick File Uploader</h2>
-    <!-- Login or file upload form -->
-    {{if not .loggedin}}
-    <form action="setuser" method="POST">
-      <input type="password" placeholder="Account" name="account">
-      <input type="submit" value="Set account">
-    </form>
-    {{else}}
-    <form class="liketable" id="uploadform" enctype='multipart/form-data' action="upload" method="POST">
-      <label>
-        <span>Files:</span>
-        <input type="file" name="files" multiple>
-      </label>
-      <!-- Tags can be set but can't be searched against so we just hide them -->
-      <label class="hidden">
-        <span>Tags:</span>
-        <input type="text" name="tags" placeholder="Tags (space sep)">
-      </label>
-      <label>
-        <span>Expire:</span>
-        <input type="text" name="expire" placeholder="Expire (24h7m, empty for permanent)" value="{{.defaultexpire}}">
-        <!--<input type="datetime-local" name="expire" placeholder="Expire (1d4h7m)" value="{{.defaultexpire}}">-->
-      </label>
-      <label>
-        <span></span>
-        <input type="submit" value="Upload">
-      </label>
-    </form>
-    {{end}}
-  </center>
+  <h2>🐇 Quick File Uploader 🍃</h2>
+  <!-- Login or file upload form -->
+  {{if not .loggedin}}
+  <form action="setuser" method="POST">
+    <input type="password" placeholder="Account" name="account">
+    <input type="submit" value="Set account">
+  </form>
+  {{else}}
+  <form class="liketable" id="uploadform" enctype='multipart/form-data' action="upload" method="POST">
+    <label>
+      <span>Files:</span>
+      <input type="file" name="files" multiple>
+    </label>
+    <!-- Tags can be set but can't be searched against so we just hide them -->
+    <label class="hidden">
+      <span>Tags:</span>
+      <input type="text" name="tags" placeholder="Tags (space sep)">
+    </label>
+    <label>
+      <span>Expire:</span>
+      <input type="text" name="expire" placeholder="Expire (24h7m, empty for permanent)" value="{{.defaultexpire}}">
+      <!--<input type="datetime-local" name="expire" placeholder="Expire (1d4h7m)" value="{{.defaultexpire}}">-->
+    </label>
+    <label>
+      <div>
+        <label><span>Unlisted:</span><input type="checkbox" name="unlisted"></label>
+      </div>
+      <input type="submit" value="Upload">
+    </label>
+  </form>
+  {{end}}
 
   <!-- Errors -->
   {{if len .errors}}
