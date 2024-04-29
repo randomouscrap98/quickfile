@@ -34,6 +34,16 @@ Once the database is created, you can move it wherever you want, so long as you 
 
 Accounts are currently stored inside the `config.toml`. This means adding new users requires reloading the program. This also may change in the future.
 
+## Performance considerations
+
+By default, no modifications or pragmas are made to the sqlite database, meaning it runs in journal/delete mode. 
+This is usually fine, but note that a write will block all readers. Since files are stored in an sqlite database,
+this means that there is a small amount of downtime during file uploads. Certainly not for the entire duration 
+of the upload, since the sqlite writes are a very small portion of the total upload time (network speeds are 
+SIGNFICANLY slower than disk write speeds). However, if you find that the page is often loading slow for you 
+due to heavy upload traffic (honestly it'd have to be pretty heavy...), you can change the sqlite journaling 
+mode to `WAL`. This is essentially a flag on the database file and will not affect the program, you do not have 
+to change your config. See: https://www.sqlite.org/wal.html
 
 ## Umm
 
