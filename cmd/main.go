@@ -215,17 +215,15 @@ func maintenanceFunc(config *quickfile.Config) {
 			cleanstats, err := quickfile.CleanupExpired(config)
 			if err != nil {
 				log.Printf("MAINTENANCE CLEANUP ERROR: %s\n", err)
-			} else {
+			} else if cleanstats.Any() {
 				log.Printf("Maintenance deleted: %d files, %d tags, %d chunks",
 					cleanstats.DeletedFiles, cleanstats.DeletedTags, cleanstats.DeletedChunks)
 			}
 			vacuumstats, err := quickfile.TryVacuum(config)
 			if err != nil {
 				log.Printf("MAINTENANCE VACUUM ERROR: %s\n", err)
-			} else {
-				if vacuumstats.Vacuumed {
-					log.Printf("Vacuum saved %d bytes\n", vacuumstats.OldSize-vacuumstats.NewSize)
-				}
+			} else if vacuumstats.Vacuumed {
+            log.Printf("Vacuum saved %d bytes\n", vacuumstats.OldSize-vacuumstats.NewSize)
 			}
 		}
 	}

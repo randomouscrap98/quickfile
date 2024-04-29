@@ -222,6 +222,10 @@ type CleanupStatistics struct {
 	DeletedTags   int64
 }
 
+func (cs * CleanupStatistics) Any() bool {
+   return cs.DeletedFiles > 0 || cs.DeletedChunks > 0 || cs.DeletedTags > 0
+}
+
 var cleanupMutex sync.Mutex
 
 // Remove expired images
