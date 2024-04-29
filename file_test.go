@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -353,5 +354,57 @@ func TestCleanup(t *testing.T) {
 	}
 	if n != int64(len(expectedData)) {
 		t.Fatalf("End not expected: %d vs %d\n", n, len(expectedData))
+	}
+}
+
+func TestConcurrentWrites(t *testing.T) {
+	const Concurrency int = 16
+	const Repeat int = 10
+	config := createTables(t, "concurrentwrites")
+	errors := make([]error, 0)
+	var wg sync.WaitGroup
+	var errmu sync.Mutex
+	var confmu sync.Mutex
+	adderr := func(err error) {
+		errmu.Lock()
+		errors = append(errors, err)
+		errmu.Unlock()
+	}
+	wg.Add(Concurrency)
+	// Spawn a crapload of goroutines that just constantly insert and delete
+	for i := 0; i < Concurrency; i++ {
+		go func(id int) {
+			account := fmt.Sprintf("account_%d", id)
+			confmu.Lock()
+			config.Accounts[account] = nil
+			config.ApplyDefaults()
+			confmu.Unlock()
+			meta := workingMeta()
+			meta.Filename = fmt.Sprintf("file%d.png", id)
+			meta.Account = account
+			data := make([]byte, 1024) // hopefully this is enough...
+			for j := 0; j < len(data); j++ {
+				data[j] = byte(j & 0xFF)
+			}
+			for n := 0; n < Repeat; n++ {
+				uf, err := InsertFile(&meta, bytes.NewReader(data), config)
+				if err != nil {
+					adderr(err)
+					break
+				}
+				err = ExpireFile(uf.ID, config)
+				if err != nil {
+					adderr(err)
+					break
+				}
+			}
+			wg.Done()
+		}(i)
+	}
+	// Wait for them to finish
+	wg.Wait()
+	// There should be no errors
+	if len(errors) > 0 {
+		t.Fatalf("Errors while concurrent write: %v", errors)
 	}
 }

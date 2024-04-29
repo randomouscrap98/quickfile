@@ -12,7 +12,10 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const ForeverDuration = "2000000h"
+const (
+	ForeverDuration = "2000000h"
+	BusyTimeout     = 5000
+)
 
 type Duration time.Duration
 
@@ -135,7 +138,7 @@ func (c *Config) ApplyDefaults() {
 }
 
 func (c *Config) OpenDb() (*sql.DB, error) {
-	return sql.Open("sqlite3", c.Datapath)
+	return sql.Open("sqlite3", fmt.Sprintf("%s?_busy_timeout=%d", c.Datapath, BusyTimeout))
 }
 
 func (c *Config) DbSize() (int64, error) {

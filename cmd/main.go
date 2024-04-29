@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"html/template"
 	"log"
@@ -11,8 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	    "crypto/md5"
-    "encoding/hex"
 
 	"github.com/randomouscrap98/quickfile"
 
@@ -29,7 +29,7 @@ import (
 
 const (
 	ConfigFile      = "config.toml"
-	AppVersion      = "0.2.1"
+	AppVersion      = "0.2.2"
 	DefaultUnlisted = "default"
 )
 
@@ -267,7 +267,7 @@ func main() {
 			http.Error(w, fmt.Sprintf("Can't find file %d", id), http.StatusNotFound)
 			return
 		}
-		requestedName,err := url.PathUnescape(name)
+		requestedName, err := url.PathUnescape(name)
 		if err != nil {
 			log.Printf("Path unescape failed for file lookup: %s\n", err)
 		}
