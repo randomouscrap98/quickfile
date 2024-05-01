@@ -90,10 +90,13 @@ func TestVariousPrechecks(t *testing.T) {
 	meta = workingMeta()
 	meta.Filename = "whatever"
 	mime, left, err = FilePrecheck(&meta, config)
-	if err == nil {
-		t.Fatalf("Should've failed because no extension/mime!")
+   if err != nil {
+		t.Fatalf("Expected no error on no extension, got %s", err)
+   }
+	if mime != "application/octet-stream" {
+		t.Fatalf("Empty extension should've been octet stream, got %s", mime)
 	}
-	log.Printf("Expected error no extension: %s\n", err)
+	//log.Printf("Expected error no extension: %s\n", err)
 	meta = workingMeta()
 	meta.Expire = time.Millisecond
 	mime, left, err = FilePrecheck(&meta, config)

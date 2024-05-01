@@ -388,7 +388,8 @@ func FilePrecheck(meta *FileInsertMeta, config *Config) (string, int64, error) {
 
 	extension := path.Ext(meta.Filename)
 	if extension == "" {
-		return "", 0, fmt.Errorf("filename must have extension")
+      extension = ".bin"
+		//return "", 0, fmt.Errorf("filename must have extension")
 	}
 
 	mimeType := mime.TypeByExtension(extension)

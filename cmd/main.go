@@ -29,7 +29,7 @@ import (
 
 const (
 	ConfigFile      = "config.toml"
-	AppVersion      = "0.2.2"
+	AppVersion      = "0.2.3"
 	DefaultUnlisted = "default"
 )
 
