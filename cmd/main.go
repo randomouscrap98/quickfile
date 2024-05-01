@@ -29,7 +29,7 @@ import (
 
 const (
 	ConfigFile      = "config.toml"
-	AppVersion      = "0.2.3"
+	AppVersion      = "0.2.4"
 	DefaultUnlisted = "default"
 )
 
@@ -223,7 +223,7 @@ func maintenanceFunc(config *quickfile.Config) {
 			if err != nil {
 				log.Printf("MAINTENANCE VACUUM ERROR: %s\n", err)
 			} else if vacuumstats.Vacuumed {
-            log.Printf("Vacuum saved %d bytes\n", vacuumstats.OldSize-vacuumstats.NewSize)
+				log.Printf("Vacuum saved %d bytes\n", vacuumstats.OldSize-vacuumstats.NewSize)
 			}
 		}
 	}
@@ -298,8 +298,9 @@ func main() {
 		_, ok := config.Accounts[account]
 		if ok {
 			http.SetCookie(w, &http.Cookie{
-				Name:  config.CookieName,
-				Value: account,
+				Name:   config.CookieName,
+				Value:  account,
+				MaxAge: 365 * 24 * 60 * 60,
 			})
 		} else {
 			log.Printf("Bad user account attempt: %s", account)
