@@ -222,8 +222,8 @@ type CleanupStatistics struct {
 	DeletedTags   int64
 }
 
-func (cs * CleanupStatistics) Any() bool {
-   return cs.DeletedFiles > 0 || cs.DeletedChunks > 0 || cs.DeletedTags > 0
+func (cs *CleanupStatistics) Any() bool {
+	return cs.DeletedFiles > 0 || cs.DeletedChunks > 0 || cs.DeletedTags > 0
 }
 
 var cleanupMutex sync.Mutex
@@ -388,8 +388,7 @@ func FilePrecheck(meta *FileInsertMeta, config *Config) (string, int64, error) {
 
 	extension := path.Ext(meta.Filename)
 	if extension == "" {
-      extension = ".bin"
-		//return "", 0, fmt.Errorf("filename must have extension")
+		extension = ".bin"
 	}
 
 	mimeType := mime.TypeByExtension(extension)

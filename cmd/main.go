@@ -29,7 +29,7 @@ import (
 
 const (
 	ConfigFile      = "config.toml"
-	AppVersion      = "0.2.4"
+	AppVersion      = "0.2.5"
 	DefaultUnlisted = "default"
 )
 
@@ -284,6 +284,7 @@ func main() {
 		filenameHex := hex.EncodeToString(filenameHash[:])
 		w.Header().Set("Etag", fmt.Sprintf("\"quickfile%s_%d_%s\"", AppVersion, fileinfo.ID, filenameHex))
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d", int64(time.Duration(config.CacheTime).Seconds())))
+		w.Header().Set("Content-Type", fileinfo.Mime)
 		http.ServeContent(w, r, fileinfo.Name, fileinfo.Date, reader)
 	})
 
