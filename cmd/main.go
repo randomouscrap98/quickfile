@@ -29,7 +29,7 @@ import (
 
 const (
 	ConfigFile      = "config.toml"
-	AppVersion      = "0.2.5"
+	AppVersion      = "0.2.6"
 	DefaultUnlisted = "default"
 )
 
@@ -122,7 +122,7 @@ func getBaseTemplateData(config *quickfile.Config, r *http.Request) map[string]a
 		userstatistics, err := quickfile.GetFileStatistics(account, config)
 		if err != nil {
 			log.Printf("WARN: couldn't get user statistics: %s\n", err)
-			data["statistics"] = &quickfile.FileStatistics{}
+			data["userstatistics"] = &quickfile.FileStatistics{}
 		} else {
 			data["userstatistics"] = userstatistics
 		}
@@ -133,6 +133,13 @@ func getBaseTemplateData(config *quickfile.Config, r *http.Request) map[string]a
 		data["statistics"] = &quickfile.FileStatistics{}
 	} else {
 		data["statistics"] = statistics
+	}
+	dbsize, err := config.DbSize()
+	if err != nil {
+		log.Printf("WARN: couldn't get db size: %s", err)
+		data["dbsize"] = 0
+	} else {
+		data["dbsize"] = dbsize
 	}
 	pagecount := int(math.Ceil(float64(statistics.Count) / float64(config.ResultsPerPage)))
 	pagelist := make([]int, pagecount)
@@ -182,10 +189,6 @@ func parseTags(tags string) []string {
 	}
 	return result
 }
-
-// func getFileLinkName(f *quickfile.UploadFile) string {
-// 	return url.PathEscape(f.Name)
-// }
 
 func getFileLink(f *quickfile.UploadFile) string {
 	name := url.PathEscape(f.Name) // getFileLinkName(f)
